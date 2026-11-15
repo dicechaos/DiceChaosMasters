@@ -27,16 +27,16 @@
 
 ## Download & Install
 
-Grab the latest **Public Beta (`v1.0.0-beta.1`)** installers or portable packages from **[GitHub Releases](https://github.com/dicechaos/DiceChaosMasters/releases)**:
+Grab the latest **Public Beta (`v1.0.0-beta.2`)** installers or portable packages from **[GitHub Releases](https://github.com/dicechaos/DiceChaosMasters/releases)**:
 
 - **Windows (x64):**
-  - `dice-chaos-masters-1.0.0-beta.1-setup.exe` *(NSIS installer with Start Menu & Desktop shortcuts)*
-  - `dice-chaos-masters-1.0.0-beta.1-win-x64-portable.zip` *(Extract anywhere and run `DiceChaosMasters.exe`)*
+  - `dice-chaos-masters-1.0.0-beta.2-setup.exe` *(NSIS installer with Start Menu & Desktop shortcuts)*
+  - `dice-chaos-masters-1.0.0-beta.2-win-x64-portable.zip` *(Extract anywhere and run `DiceChaosMasters.exe`)*
 - **macOS (Apple Silicon & Intel):**
-  - `dice-chaos-masters-1.0.0-beta.1-arm64.dmg` / `dice-chaos-masters-1.0.0-beta.1-x64.dmg` *(Disk image installers)*
-  - `dice-chaos-masters-1.0.0-beta.1-mac-arm64.zip` / `dice-chaos-masters-1.0.0-beta.1-mac-x64.zip` *(Portable macOS bundles)*
+  - `dice-chaos-masters-1.0.0-beta.2-arm64.dmg` / `dice-chaos-masters-1.0.0-beta.2-x64.dmg` *(Disk image installers)*
+  - `dice-chaos-masters-1.0.0-beta.2-mac-arm64.zip` / `dice-chaos-masters-1.0.0-beta.2-mac-x64.zip` *(Portable macOS bundles)*
 - **Linux (x64):**
-  - `dice-chaos-masters-1.0.0-beta.1.AppImage` or `dice-chaos-masters_1.0.0-beta.1_amd64.deb`
+  - `dice-chaos-masters-1.0.0-beta.2.AppImage` or `dice-chaos-masters_1.0.0-beta.2_amd64.deb`
 
 > **Windows SmartScreen / macOS Gatekeeper Note:** Because Public Beta builds are not yet signed with a commercial EV certificate:
 > - **Windows:** If *"Windows protected your PC"* appears on first launch, click **More info** -> **Run anyway**.

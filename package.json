@@ -1,6 +1,6 @@
 {
   "name": "dice-chaos-masters",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Free parametric polyhedral dice master and matched insert blank STL/3MF generator by Dice Chaos (dicechaos.com)",
   "main": "./out/main/index.js",
   "author": "Gus (https://dicechaos.com)",

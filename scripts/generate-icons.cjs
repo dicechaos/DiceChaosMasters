@@ -18,14 +18,16 @@ function ensureDir(dir) {
  * Generates the Dice Chaos Masters sibling icon SVG:
  * - Midnight-Sapphire squircle + blueprint CAD grid + 4 cyan caliper ticks
  * - MSLA resin raft base + micro support struts
- * - Nested cyan dashed Insert Blank core inside a 5-color neon Master D20
- * - Hero centered '20' facet numeral
+ * - 2/3 solid printed faceted multi-neon D20 with resin layer striations + nested Insert Blank core
+ * - Active glowing cure scanline at the 2/3 print horizon (y = 188)
+ * - Top 1/3 unprinted dashed CAD blueprint wireframe (without numeral text)
  */
 function buildMasterSvg(forFavicon = false) {
   const cx = 256;
   const cy = 242;
   const outerR = 164;
   const innerR = 88;
+  const printY = 188;
 
   // Regular hexagon vertices (top point at -90 deg)
   const outerPts = Array.from({ length: 6 }, (_, i) => {
@@ -33,14 +35,14 @@ function buildMasterSvg(forFavicon = false) {
     return [+(cx + outerR * Math.cos(a)).toFixed(2), +(cy + outerR * Math.sin(a)).toFixed(2)];
   });
 
-  // Inner upward equilateral triangle vertices (centered at cy + 4 for optical balance)
+  // Inner upward equilateral triangle vertices (centered at cy + 6 for optical balance)
   const innerCy = cy + 6;
   const innerPts = Array.from({ length: 3 }, (_, i) => {
     const a = (-Math.PI / 2) + (i * 2 * Math.PI) / 3;
     return [+(cx + innerR * Math.cos(a)).toFixed(2), +(innerCy + innerR * Math.sin(a)).toFixed(2)];
   });
 
-  // Smaller nested Insert Blank hexagon/triangle inside
+  // Smaller nested Insert Blank hexagon inside
   const blankR = 118;
   const blankPts = Array.from({ length: 6 }, (_, i) => {
     const a = (-Math.PI / 2) + (i * Math.PI) / 3;
@@ -48,6 +50,22 @@ function buildMasterSvg(forFavicon = false) {
   });
 
   const pStr = (pt) => `${pt[0]},${pt[1]}`;
+  const layerLines = forFavicon
+    ? ''
+    : [204, 220, 236, 252, 268, 284, 300, 316, 332, 348, 364, 380, 396]
+        .map(
+          (y) =>
+            `        <line x1="110" y1="${y}" x2="402" y2="${y}" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />`
+        )
+        .join('\n');
+  const vertexNodes = forFavicon
+    ? ''
+    : [outerPts[0], outerPts[1], outerPts[5], innerPts[0]]
+        .map(
+          ([vx, vy]) =>
+            `      <circle cx="${vx}" cy="${vy}" r="5.5" fill="#091226" stroke="#38bdf8" stroke-width="2.6" />`
+        )
+        .join('\n');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Dice Chaos Masters Icon">
   <defs>
@@ -67,8 +85,8 @@ function buildMasterSvg(forFavicon = false) {
       <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.75" />
     </linearGradient>
     <linearGradient id="dcm-center-face" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e3a6e" />
-      <stop offset="100%" stop-color="#0f1e42" />
+      <stop offset="0%" stop-color="#234887" />
+      <stop offset="100%" stop-color="#122754" />
     </linearGradient>
     <linearGradient id="dcm-neon-rim" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8" />
@@ -82,8 +100,29 @@ function buildMasterSvg(forFavicon = false) {
       <stop offset="50%" stop-color="#38bdf8" />
       <stop offset="100%" stop-color="#818cf8" />
     </linearGradient>
+    <linearGradient id="dcm-cure-beam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="35%" stop-color="#e0f2fe" />
+      <stop offset="50%" stop-color="#f8fafc" />
+      <stop offset="70%" stop-color="#e879f9" />
+      <stop offset="100%" stop-color="#22d3ee" />
+    </linearGradient>
+    <linearGradient id="dcm-cure-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
+      <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.38" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </linearGradient>
     <clipPath id="dcm-squircle">
       <rect x="24" y="24" width="464" height="464" rx="108" ry="108" />
+    </clipPath>
+    <clipPath id="dcm-printed-zone">
+      <rect x="0" y="${printY}" width="512" height="${512 - printY}" />
+    </clipPath>
+    <clipPath id="dcm-wireframe-zone">
+      <rect x="0" y="0" width="512" height="${printY}" />
+    </clipPath>
+    <clipPath id="dcm-d20-clip">
+      <polygon points="${outerPts.map(pStr).join(' ')}" />
     </clipPath>
   </defs>
 
@@ -122,84 +161,120 @@ function buildMasterSvg(forFavicon = false) {
       <polygon points="154,430 358,430 374,446 138,446" fill="url(#dcm-raft)" opacity="0.95" />
     </g>
 
-    <!-- D20 Outer Facets (Faceted Low-Poly Shading) -->
-    <polygon points="${pStr(outerPts[0])} ${pStr(outerPts[1])} ${pStr(innerPts[0])}" fill="#172b59" />
-    <polygon points="${pStr(outerPts[1])} ${pStr(innerPts[1])} ${pStr(innerPts[0])}" fill="#12234a" />
-    <polygon points="${pStr(outerPts[1])} ${pStr(outerPts[2])} ${pStr(innerPts[1])}" fill="#0d1b3c" />
-    <polygon points="${pStr(outerPts[2])} ${pStr(outerPts[3])} ${pStr(innerPts[1])}" fill="#0b1633" />
-    <polygon points="${pStr(outerPts[3])} ${pStr(innerPts[2])} ${pStr(innerPts[1])}" fill="#101f44" />
-    <polygon points="${pStr(outerPts[3])} ${pStr(outerPts[4])} ${pStr(innerPts[2])}" fill="#0d1838" />
-    <polygon points="${pStr(outerPts[4])} ${pStr(outerPts[5])} ${pStr(innerPts[2])}" fill="#13254f" />
-    <polygon points="${pStr(outerPts[5])} ${pStr(innerPts[0])} ${pStr(innerPts[2])}" fill="#183063" />
-    <polygon points="${pStr(outerPts[5])} ${pStr(outerPts[0])} ${pStr(innerPts[0])}" fill="#1c3870" />
-
-    <!-- Center Main Triangle Face -->
-    <polygon points="${innerPts.map(pStr).join(' ')}" fill="url(#dcm-center-face)" />
-
-    <!-- Nested Insert Blank Wireframe (Matched Inner Core above Facets) -->
-    <polygon
-      points="${blankPts.map(pStr).join(' ')}"
-      fill="none"
-      stroke="#22d3ee"
-      stroke-width="2.4"
-      stroke-dasharray="9 6"
-      stroke-opacity="0.52"
-    />
-
-    <!-- Interior Polyhedral Edges (5-Color Neon Accents) -->
-    <g stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
-      <line x1="${outerPts[0][0]}" y1="${outerPts[0][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
-      <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#a78bfa" />
-      <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#a78bfa" />
-      <line x1="${outerPts[2][0]}" y1="${outerPts[2][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#f472b6" />
-      <line x1="${outerPts[3][0]}" y1="${outerPts[3][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#f472b6" />
-      <line x1="${outerPts[3][0]}" y1="${outerPts[3][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#fbbf24" />
-      <line x1="${outerPts[4][0]}" y1="${outerPts[4][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#34d399" />
-      <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#34d399" />
-      <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
+    <!-- Top 1/3: Unprinted Dashed CAD Blueprint Wireframe -->
+    <g clip-path="url(#dcm-wireframe-zone)">
+      <polygon points="${outerPts.map(pStr).join(' ')}" fill="#38bdf8" fill-opacity="0.045" />
+      <polygon
+        points="${blankPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="#22d3ee"
+        stroke-width="2.2"
+        stroke-dasharray="7 6"
+        stroke-opacity="0.35"
+      />
+      <g stroke-width="3" stroke-dasharray="8 7" stroke-opacity="0.55" stroke-linecap="round">
+        <line x1="${outerPts[0][0]}" y1="${outerPts[0][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
+        <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#a78bfa" />
+        <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#a78bfa" />
+        <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#38bdf8" />
+        <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
+      </g>
+      <polygon
+        points="${innerPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="3"
+        stroke-dasharray="8 7"
+        stroke-opacity="0.55"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+      <polygon
+        points="${outerPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="4.5"
+        stroke-dasharray="11 8"
+        stroke-linejoin="round"
+        stroke-opacity="0.72"
+      />
+${vertexNodes}
     </g>
 
-    <!-- Center Crown Facet Frame -->
-    <polygon
-      points="${innerPts.map(pStr).join(' ')}"
-      fill="none"
-      stroke="#fbbf24"
-      stroke-width="3.8"
-      stroke-linejoin="round"
-      stroke-opacity="0.92"
-    />
+    <!-- Bottom 2/3: Solid Printed Master with Multi-Neon Edges -->
+    <g clip-path="url(#dcm-printed-zone)">
+      <!-- D20 Outer Facets (Faceted Low-Poly Shading) -->
+      <polygon points="${pStr(outerPts[0])} ${pStr(outerPts[1])} ${pStr(innerPts[0])}" fill="#172b59" />
+      <polygon points="${pStr(outerPts[1])} ${pStr(innerPts[1])} ${pStr(innerPts[0])}" fill="#12234a" />
+      <polygon points="${pStr(outerPts[1])} ${pStr(outerPts[2])} ${pStr(innerPts[1])}" fill="#0d1b3c" />
+      <polygon points="${pStr(outerPts[2])} ${pStr(outerPts[3])} ${pStr(innerPts[1])}" fill="#0b1633" />
+      <polygon points="${pStr(outerPts[3])} ${pStr(innerPts[2])} ${pStr(innerPts[1])}" fill="#101f44" />
+      <polygon points="${pStr(outerPts[3])} ${pStr(outerPts[4])} ${pStr(innerPts[2])}" fill="#0d1838" />
+      <polygon points="${pStr(outerPts[4])} ${pStr(outerPts[5])} ${pStr(innerPts[2])}" fill="#13254f" />
+      <polygon points="${pStr(outerPts[5])} ${pStr(innerPts[0])} ${pStr(innerPts[2])}" fill="#183063" />
+      <polygon points="${pStr(outerPts[5])} ${pStr(outerPts[0])} ${pStr(innerPts[0])}" fill="#1c3870" />
 
-    <!-- Outer Multi-Neon D20 Silhouette -->
-    <polygon
-      points="${outerPts.map(pStr).join(' ')}"
-      fill="none"
-      stroke="url(#dcm-neon-rim)"
-      stroke-width="7.5"
-      stroke-linejoin="round"
-    />
+      <!-- Center Main Triangle Face -->
+      <polygon points="${innerPts.map(pStr).join(' ')}" fill="url(#dcm-center-face)" />
 
-    <!-- Engraved Hero '20' Numeral -->
-    <text
-      x="256"
-      y="272"
-      text-anchor="middle"
-      font-family="Segoe UI, Inter, Arial Black, sans-serif"
-      font-weight="900"
-      font-size="68"
-      letter-spacing="-2"
-      fill="#091329"
-      transform="translate(0, 2)"
-    >20</text>
-    <text
-      x="256"
-      y="272"
-      text-anchor="middle"
-      font-family="Segoe UI, Inter, Arial Black, sans-serif"
-      font-weight="900"
-      font-size="68"
-      letter-spacing="-2"
-      fill="#f8fafc"
-    >20</text>
+      <!-- Horizontal Printed Resin Layer Striations -->
+      <g clip-path="url(#dcm-d20-clip)">
+${layerLines}
+      </g>
+
+      <!-- Nested Insert Blank Wireframe (Matched Inner Core above Facets) -->
+      <polygon
+        points="${blankPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="#22d3ee"
+        stroke-width="2.6"
+        stroke-dasharray="9 6"
+        stroke-opacity="0.62"
+      />
+
+      <!-- Interior Polyhedral Edges (5-Color Neon Accents) -->
+      <g stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
+        <line x1="${outerPts[0][0]}" y1="${outerPts[0][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
+        <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#a78bfa" />
+        <line x1="${outerPts[1][0]}" y1="${outerPts[1][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#a78bfa" />
+        <line x1="${outerPts[2][0]}" y1="${outerPts[2][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#f472b6" />
+        <line x1="${outerPts[3][0]}" y1="${outerPts[3][1]}" x2="${innerPts[1][0]}" y2="${innerPts[1][1]}" stroke="#f472b6" />
+        <line x1="${outerPts[3][0]}" y1="${outerPts[3][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#fbbf24" />
+        <line x1="${outerPts[4][0]}" y1="${outerPts[4][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#34d399" />
+        <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[2][0]}" y2="${innerPts[2][1]}" stroke="#34d399" />
+        <line x1="${outerPts[5][0]}" y1="${outerPts[5][1]}" x2="${innerPts[0][0]}" y2="${innerPts[0][1]}" stroke="#38bdf8" />
+      </g>
+
+      <!-- Center Crown Facet Frame -->
+      <polygon
+        points="${innerPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="#fbbf24"
+        stroke-width="3.8"
+        stroke-linejoin="round"
+        stroke-opacity="0.92"
+      />
+
+      <!-- Outer Multi-Neon D20 Silhouette -->
+      <polygon
+        points="${outerPts.map(pStr).join(' ')}"
+        fill="none"
+        stroke="url(#dcm-neon-rim)"
+        stroke-width="7.5"
+        stroke-linejoin="round"
+      />
+    </g>
+
+    <!-- Active 2/3 Cure Horizon Scanline -->
+    <g>
+      <rect x="102" y="176" width="308" height="24" rx="12" fill="url(#dcm-cure-glow)" />
+      <line x1="102" y1="${printY}" x2="410" y2="${printY}" stroke="url(#dcm-cure-beam)" stroke-width="5.5" stroke-linecap="round" />
+      <line x1="114" y1="${printY}" x2="398" y2="${printY}" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.95" />
+      <circle cx="113.97" cy="${printY}" r="6" fill="#38bdf8" fill-opacity="0.45" />
+      <circle cx="113.97" cy="${printY}" r="3.2" fill="#f8fafc" />
+      <circle cx="398.03" cy="${printY}" r="6" fill="#38bdf8" fill-opacity="0.45" />
+      <circle cx="398.03" cy="${printY}" r="3.2" fill="#f8fafc" />
+    </g>
   </g>
 
   <!-- Outer Badge Border -->

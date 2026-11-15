@@ -16,8 +16,8 @@
       <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.75" />
     </linearGradient>
     <linearGradient id="dcm-center-face" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e3a6e" />
-      <stop offset="100%" stop-color="#0f1e42" />
+      <stop offset="0%" stop-color="#234887" />
+      <stop offset="100%" stop-color="#122754" />
     </linearGradient>
     <linearGradient id="dcm-neon-rim" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#38bdf8" />
@@ -31,8 +31,29 @@
       <stop offset="50%" stop-color="#38bdf8" />
       <stop offset="100%" stop-color="#818cf8" />
     </linearGradient>
+    <linearGradient id="dcm-cure-beam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="35%" stop-color="#e0f2fe" />
+      <stop offset="50%" stop-color="#f8fafc" />
+      <stop offset="70%" stop-color="#e879f9" />
+      <stop offset="100%" stop-color="#22d3ee" />
+    </linearGradient>
+    <linearGradient id="dcm-cure-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
+      <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.38" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </linearGradient>
     <clipPath id="dcm-squircle">
       <rect x="24" y="24" width="464" height="464" rx="108" ry="108" />
+    </clipPath>
+    <clipPath id="dcm-printed-zone">
+      <rect x="0" y="188" width="512" height="324" />
+    </clipPath>
+    <clipPath id="dcm-wireframe-zone">
+      <rect x="0" y="0" width="512" height="188" />
+    </clipPath>
+    <clipPath id="dcm-d20-clip">
+      <polygon points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160" />
     </clipPath>
   </defs>
 
@@ -71,84 +92,135 @@
       <polygon points="154,430 358,430 374,446 138,446" fill="url(#dcm-raft)" opacity="0.95" />
     </g>
 
-    <!-- D20 Outer Facets (Faceted Low-Poly Shading) -->
-    <polygon points="256,78 398.03,160 256,160" fill="#172b59" />
-    <polygon points="398.03,160 332.21,292 256,160" fill="#12234a" />
-    <polygon points="398.03,160 398.03,324 332.21,292" fill="#0d1b3c" />
-    <polygon points="398.03,324 256,406 332.21,292" fill="#0b1633" />
-    <polygon points="256,406 179.79,292 332.21,292" fill="#101f44" />
-    <polygon points="256,406 113.97,324 179.79,292" fill="#0d1838" />
-    <polygon points="113.97,324 113.97,160 179.79,292" fill="#13254f" />
-    <polygon points="113.97,160 256,160 179.79,292" fill="#183063" />
-    <polygon points="113.97,160 256,78 256,160" fill="#1c3870" />
-
-    <!-- Center Main Triangle Face -->
-    <polygon points="256,160 332.21,292 179.79,292" fill="url(#dcm-center-face)" />
-
-    <!-- Nested Insert Blank Wireframe (Matched Inner Core above Facets) -->
-    <polygon
-      points="256,124 358.19,183 358.19,301 256,360 153.81,301 153.81,183"
-      fill="none"
-      stroke="#22d3ee"
-      stroke-width="2.4"
-      stroke-dasharray="9 6"
-      stroke-opacity="0.52"
-    />
-
-    <!-- Interior Polyhedral Edges (5-Color Neon Accents) -->
-    <g stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
-      <line x1="256" y1="78" x2="256" y2="160" stroke="#38bdf8" />
-      <line x1="398.03" y1="160" x2="256" y2="160" stroke="#a78bfa" />
-      <line x1="398.03" y1="160" x2="332.21" y2="292" stroke="#a78bfa" />
-      <line x1="398.03" y1="324" x2="332.21" y2="292" stroke="#f472b6" />
-      <line x1="256" y1="406" x2="332.21" y2="292" stroke="#f472b6" />
-      <line x1="256" y1="406" x2="179.79" y2="292" stroke="#fbbf24" />
-      <line x1="113.97" y1="324" x2="179.79" y2="292" stroke="#34d399" />
-      <line x1="113.97" y1="160" x2="179.79" y2="292" stroke="#34d399" />
-      <line x1="113.97" y1="160" x2="256" y2="160" stroke="#38bdf8" />
+    <!-- Top 1/3: Unprinted Dashed CAD Blueprint Wireframe -->
+    <g clip-path="url(#dcm-wireframe-zone)">
+      <polygon points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160" fill="#38bdf8" fill-opacity="0.045" />
+      <polygon
+        points="256,124 358.19,183 358.19,301 256,360 153.81,301 153.81,183"
+        fill="none"
+        stroke="#22d3ee"
+        stroke-width="2.2"
+        stroke-dasharray="7 6"
+        stroke-opacity="0.35"
+      />
+      <g stroke-width="3" stroke-dasharray="8 7" stroke-opacity="0.55" stroke-linecap="round">
+        <line x1="256" y1="78" x2="256" y2="160" stroke="#38bdf8" />
+        <line x1="398.03" y1="160" x2="256" y2="160" stroke="#a78bfa" />
+        <line x1="398.03" y1="160" x2="332.21" y2="292" stroke="#a78bfa" />
+        <line x1="113.97" y1="160" x2="179.79" y2="292" stroke="#38bdf8" />
+        <line x1="113.97" y1="160" x2="256" y2="160" stroke="#38bdf8" />
+      </g>
+      <polygon
+        points="256,160 332.21,292 179.79,292"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="3"
+        stroke-dasharray="8 7"
+        stroke-opacity="0.55"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+      <polygon
+        points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="4.5"
+        stroke-dasharray="11 8"
+        stroke-linejoin="round"
+        stroke-opacity="0.72"
+      />
+      <circle cx="256" cy="78" r="5.5" fill="#091226" stroke="#38bdf8" stroke-width="2.6" />
+      <circle cx="398.03" cy="160" r="5.5" fill="#091226" stroke="#38bdf8" stroke-width="2.6" />
+      <circle cx="113.97" cy="160" r="5.5" fill="#091226" stroke="#38bdf8" stroke-width="2.6" />
+      <circle cx="256" cy="160" r="5.5" fill="#091226" stroke="#38bdf8" stroke-width="2.6" />
     </g>
 
-    <!-- Center Crown Facet Frame -->
-    <polygon
-      points="256,160 332.21,292 179.79,292"
-      fill="none"
-      stroke="#fbbf24"
-      stroke-width="3.8"
-      stroke-linejoin="round"
-      stroke-opacity="0.92"
-    />
+    <!-- Bottom 2/3: Solid Printed Master with Multi-Neon Edges -->
+    <g clip-path="url(#dcm-printed-zone)">
+      <!-- D20 Outer Facets (Faceted Low-Poly Shading) -->
+      <polygon points="256,78 398.03,160 256,160" fill="#172b59" />
+      <polygon points="398.03,160 332.21,292 256,160" fill="#12234a" />
+      <polygon points="398.03,160 398.03,324 332.21,292" fill="#0d1b3c" />
+      <polygon points="398.03,324 256,406 332.21,292" fill="#0b1633" />
+      <polygon points="256,406 179.79,292 332.21,292" fill="#101f44" />
+      <polygon points="256,406 113.97,324 179.79,292" fill="#0d1838" />
+      <polygon points="113.97,324 113.97,160 179.79,292" fill="#13254f" />
+      <polygon points="113.97,160 256,160 179.79,292" fill="#183063" />
+      <polygon points="113.97,160 256,78 256,160" fill="#1c3870" />
 
-    <!-- Outer Multi-Neon D20 Silhouette -->
-    <polygon
-      points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160"
-      fill="none"
-      stroke="url(#dcm-neon-rim)"
-      stroke-width="7.5"
-      stroke-linejoin="round"
-    />
+      <!-- Center Main Triangle Face -->
+      <polygon points="256,160 332.21,292 179.79,292" fill="url(#dcm-center-face)" />
 
-    <!-- Engraved Hero '20' Numeral -->
-    <text
-      x="256"
-      y="272"
-      text-anchor="middle"
-      font-family="Segoe UI, Inter, Arial Black, sans-serif"
-      font-weight="900"
-      font-size="68"
-      letter-spacing="-2"
-      fill="#091329"
-      transform="translate(0, 2)"
-    >20</text>
-    <text
-      x="256"
-      y="272"
-      text-anchor="middle"
-      font-family="Segoe UI, Inter, Arial Black, sans-serif"
-      font-weight="900"
-      font-size="68"
-      letter-spacing="-2"
-      fill="#f8fafc"
-    >20</text>
+      <!-- Horizontal Printed Resin Layer Striations -->
+      <g clip-path="url(#dcm-d20-clip)">
+        <line x1="110" y1="204" x2="402" y2="204" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="220" x2="402" y2="220" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="236" x2="402" y2="236" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="252" x2="402" y2="252" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="268" x2="402" y2="268" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="284" x2="402" y2="284" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="300" x2="402" y2="300" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="316" x2="402" y2="316" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="332" x2="402" y2="332" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="348" x2="402" y2="348" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="364" x2="402" y2="364" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="380" x2="402" y2="380" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+        <line x1="110" y1="396" x2="402" y2="396" stroke="#7dd3fc" stroke-opacity="0.13" stroke-width="1.5" />
+      </g>
+
+      <!-- Nested Insert Blank Wireframe (Matched Inner Core above Facets) -->
+      <polygon
+        points="256,124 358.19,183 358.19,301 256,360 153.81,301 153.81,183"
+        fill="none"
+        stroke="#22d3ee"
+        stroke-width="2.6"
+        stroke-dasharray="9 6"
+        stroke-opacity="0.62"
+      />
+
+      <!-- Interior Polyhedral Edges (5-Color Neon Accents) -->
+      <g stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
+        <line x1="256" y1="78" x2="256" y2="160" stroke="#38bdf8" />
+        <line x1="398.03" y1="160" x2="256" y2="160" stroke="#a78bfa" />
+        <line x1="398.03" y1="160" x2="332.21" y2="292" stroke="#a78bfa" />
+        <line x1="398.03" y1="324" x2="332.21" y2="292" stroke="#f472b6" />
+        <line x1="256" y1="406" x2="332.21" y2="292" stroke="#f472b6" />
+        <line x1="256" y1="406" x2="179.79" y2="292" stroke="#fbbf24" />
+        <line x1="113.97" y1="324" x2="179.79" y2="292" stroke="#34d399" />
+        <line x1="113.97" y1="160" x2="179.79" y2="292" stroke="#34d399" />
+        <line x1="113.97" y1="160" x2="256" y2="160" stroke="#38bdf8" />
+      </g>
+
+      <!-- Center Crown Facet Frame -->
+      <polygon
+        points="256,160 332.21,292 179.79,292"
+        fill="none"
+        stroke="#fbbf24"
+        stroke-width="3.8"
+        stroke-linejoin="round"
+        stroke-opacity="0.92"
+      />
+
+      <!-- Outer Multi-Neon D20 Silhouette -->
+      <polygon
+        points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160"
+        fill="none"
+        stroke="url(#dcm-neon-rim)"
+        stroke-width="7.5"
+        stroke-linejoin="round"
+      />
+    </g>
+
+    <!-- Active 2/3 Cure Horizon Scanline -->
+    <g>
+      <rect x="102" y="176" width="308" height="24" rx="12" fill="url(#dcm-cure-glow)" />
+      <line x1="102" y1="188" x2="410" y2="188" stroke="url(#dcm-cure-beam)" stroke-width="5.5" stroke-linecap="round" />
+      <line x1="114" y1="188" x2="398" y2="188" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.95" />
+      <circle cx="113.97" cy="188" r="6" fill="#38bdf8" fill-opacity="0.45" />
+      <circle cx="113.97" cy="188" r="3.2" fill="#f8fafc" />
+      <circle cx="398.03" cy="188" r="6" fill="#38bdf8" fill-opacity="0.45" />
+      <circle cx="398.03" cy="188" r="3.2" fill="#f8fafc" />
+    </g>
   </g>
 
   <!-- Outer Badge Border -->
