@@ -27,16 +27,16 @@
 
 ## Download & Install
 
-Grab the latest **Public Beta (`v1.0.0-beta.2`)** installers or portable packages from **[GitHub Releases](https://github.com/dicechaos/DiceChaosMasters/releases)**:
+Grab the latest **Public Beta (`v1.0.0-beta.3`)** installers or portable packages from **[GitHub Releases](https://github.com/dicechaos/DiceChaosMasters/releases)**:
 
 - **Windows (x64):**
-  - `dice-chaos-masters-1.0.0-beta.2-setup.exe` *(NSIS installer with Start Menu & Desktop shortcuts)*
-  - `dice-chaos-masters-1.0.0-beta.2-win-x64-portable.zip` *(Extract anywhere and run `DiceChaosMasters.exe`)*
+  - `dice-chaos-masters-1.0.0-beta.3-setup.exe` *(NSIS installer with Start Menu & Desktop shortcuts)*
+  - `dice-chaos-masters-1.0.0-beta.3-win-x64-portable.zip` *(Extract anywhere and run `DiceChaosMasters.exe`)*
 - **macOS (Apple Silicon & Intel):**
-  - `dice-chaos-masters-1.0.0-beta.2-arm64.dmg` / `dice-chaos-masters-1.0.0-beta.2-x64.dmg` *(Disk image installers)*
-  - `dice-chaos-masters-1.0.0-beta.2-mac-arm64.zip` / `dice-chaos-masters-1.0.0-beta.2-mac-x64.zip` *(Portable macOS bundles)*
+  - `dice-chaos-masters-1.0.0-beta.3-arm64.dmg` / `dice-chaos-masters-1.0.0-beta.3-x64.dmg` *(Disk image installers)*
+  - `dice-chaos-masters-1.0.0-beta.3-mac-arm64.zip` / `dice-chaos-masters-1.0.0-beta.3-mac-x64.zip` *(Portable macOS bundles)*
 - **Linux (x64):**
-  - `dice-chaos-masters-1.0.0-beta.2.AppImage` or `dice-chaos-masters_1.0.0-beta.2_amd64.deb`
+  - `dice-chaos-masters-1.0.0-beta.3.AppImage` or `dice-chaos-masters_1.0.0-beta.3_amd64.deb`
 
 > **Windows SmartScreen / macOS Gatekeeper Note:** Because Public Beta builds are not yet signed with a commercial EV certificate:
 > - **Windows:** If *"Windows protected your PC"* appears on first launch, click **More info** -> **Run anyway**.
@@ -46,8 +46,10 @@ Grab the latest **Public Beta (`v1.0.0-beta.2`)** installers or portable package
 
 ## Key Features
 
-### Full Polyhedral Set & Custom Variants (`D2` – `D20`)
-- **Complete 9-Die Studio:** `D2` Coin, `D3` (*Truncated Barrel* & *Rounded Prism*), `D4` (**6 variants:** *Crystal Shard*, *Arch / Barrel*, *Pendulum Drop*, *Truncated Tet*, *Classic Vertex*, *Classic Base*), `D6`, `D8`, `D10` (`0–9` or `1–10`), `D00` (`horizontal` or `vertical` alignment), `D12`, and `D20` (*Balanced* or *Spindown*).
+### Full 12-Shape Polyhedral Set, Custom Variants & Multi-Instance Sets (`D2` – `D20`)
+- **Complete 12-Shape Studio:** `D2` Coins (6 silhouettes: *Round*, *Oval*, *Rounded Square*, *Hexagon*, *Octagon*, *Shield Crest*), `D3` (*Truncated Barrel* & *Rounded Prism*), `D4` (**6 variants:** *Crystal Shard*, *Arch / Barrel*, *Pendulum Drop*, *Truncated Tet*, *Classic Vertex*, *Classic Base*), odd-sided `D5` / `D7` / `D9` (*Trapezohedron 2×*, *Crystal Barrel 2×*, *Zocchi Prism 1×*), `D6` (*Standard*, *Crystal Barrel*, *Rhombic Diamond*, *Truncated Cube*), `D8` (*Octahedron*, *Gem Shard*, *Crystal Barrel*), `D10` (`0–9` or `1–10` + *Crystal Barrel*), `D00` (`horizontal` or `vertical` alignment + *Crystal Barrel*), `D12` (*Pentagonal*, Catalan *Rhombic D12*, *Crystal Barrel*), and `D20` (*Balanced* or *Spindown*).
+- **Multi-Instance Sets & Quick Game Set Templates:** Add duplicate dice in one project (such as Logo + Numbers `2× D6` or `2× D20` pairs) or apply 1-click **Quick Game Set Templates** (*Classic RPG 7*, *Twin D20 Advantage 8*, *Coin + Twin D6/D20 10-Die Set*, *Catalan Rhombic 7*, *Crystal Barrel 7*, *DCC Weird Chain 10*, *Full 12-Shape Continuum*).
+- **Multi-Die Selection, Group Editing & Context Menus:** Multi-select across the left rail and 3D tray (`All`, `RPG 7`, `Multi`, `Ctrl/Cmd+Click`, `Shift+Click`) for real-time relative/uniform caliper scaling, shared chamfer/clearance/font overrides, and `Selected Group` export; right-click (or `Shift+F10`) dice, faces, and `Faces: All` for fast batch edits, plus confirm-gated die removal.
 - **Precision Face-to-Face Caliper Sizing & Batch Controls:** Tune global or per-die caliper dimensions, edge chamfer radius, crystal elongation ratios, and silicone/resin shrinkage compensation (`%`).
 
 ### True `0.00 mm` Sharp-Edge & Chamfered `manifold-3d` CSG Kernel
@@ -82,6 +84,9 @@ Grab the latest **Public Beta (`v1.0.0-beta.2`)** installers or portable package
 | **`Ctrl + S`** / **`Ctrl + Shift + S`** | Save / Save As `.dcproj` project |
 | **`Ctrl + O`** | Open `.dcproj` archive |
 | **`Ctrl + E`** | Open Batch Export dialog |
+| **`Ctrl + A`** / **`Shift + Click`** | Multi-die group selection (`Esc` collapses to Single) |
+| **`Right-Click`** / **`Shift + F10`** | Die, Face & `Faces: All` context menu |
+| **`Delete`** | Remove selected dice (with confirmation dialog) |
 | **`1`** / **`2`** / **`3`** / **`4`** | Single Die / Full Tray / Insert X-Ray / Supports |
 | **`F`** | Fit & reset 3D camera |
 | **`\`** | Toggle unobstructed Focus Mode |

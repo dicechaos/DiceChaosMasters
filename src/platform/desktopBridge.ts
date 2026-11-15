@@ -7,6 +7,10 @@ export function isDesktopRuntime(): boolean {
   return typeof window !== 'undefined' && Boolean(window.api?.isDesktop);
 }
 
+function hasDesktopApi(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.api);
+}
+
 /**
  * Discovers installed system TrueType/OpenType fonts via Electron main process.
  * Returns empty in browser mode (where bundled + drag/dropped fonts are used).
@@ -44,8 +48,8 @@ export async function loadFontArrayBuffer(font: FontEntry): Promise<ArrayBuffer>
     return bytes.buffer;
   }
 
-  if (font.source === 'system' && font.systemPath && window.api) {
-    const bytes = await window.api.fonts.readFile(font.systemPath);
+  if (font.source === 'system' && font.systemPath && hasDesktopApi()) {
+    const bytes = await window.api!.fonts.readFile(font.systemPath);
     const ab = bytes.slice().buffer;
     inMemoryFontCache.set(font.id, ab);
     return ab;
@@ -63,10 +67,10 @@ export async function loadFontArrayBuffer(font: FontEntry): Promise<ArrayBuffer>
       // Fallback to Electron bundled font IPC on restricted file:// environments
     }
 
-    if (window.api) {
+    if (hasDesktopApi()) {
       const fileName = font.url.split('/').pop();
       if (fileName) {
-        const bytes = await window.api.fonts.readBundled(fileName);
+        const bytes = await window.api!.fonts.readBundled(fileName);
         const ab = bytes.slice().buffer;
         inMemoryFontCache.set(font.id, ab);
         return ab;
@@ -141,8 +145,8 @@ export function syncWindowDirtyState(state: {
   filePath?: string | null;
   setName?: string;
 }): void {
-  if (window.api) {
-    window.api.project.setDirtyState(state);
+  if (hasDesktopApi()) {
+    window.api!.project.setDirtyState(state);
   }
 }
 
@@ -159,47 +163,42 @@ export function confirmQuitClean(): void {
   }
 }
 
+export interface BundleExportResult {
+  message: string;
+  downloadFilename?: string;
+  downloadBytes?: Uint8Array;
+  mimeType?: string;
+}
+
 export async function exportBundleToDisk(
   folderName: string,
   files: BundleFilePayload[],
-): Promise<string> {
-  if (window.api) {
+): Promise<BundleExportResult> {
+  if (typeof window !== 'undefined' && window.api) {
     const res = await window.api.export.writeBundle(folderName, files);
     if (res.canceled || !res.outputDir) {
       throw new Error('Export canceled by user.');
     }
-    return `Saved ${res.count ?? files.length} files to ${res.outputDir}`;
+    return {
+      message: `Saved ${res.count ?? files.length} files to ${res.outputDir}`,
+    };
   }
 
-  const anyWin = window as unknown as {
-    showDirectoryPicker?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
-  };
-
-  if (typeof anyWin.showDirectoryPicker === 'function') {
-    const root = await anyWin.showDirectoryPicker({ mode: 'readwrite' });
-    const bundleRoot = await root.getDirectoryHandle(folderName, { create: true });
-
-    for (const file of files) {
-      const parts = file.relativePath.split('/').filter(Boolean);
-      let cursor = bundleRoot;
-      for (let i = 0; i < parts.length - 1; i++) {
-        cursor = await cursor.getDirectoryHandle(parts[i], { create: true });
-      }
-      const fileHandle = await cursor.getFileHandle(parts[parts.length - 1], { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(new Blob([Uint8Array.from(file.bytes)]));
-      await writable.close();
-    }
-    return `Saved ${files.length} files into "${folderName}" folder.`;
-  }
-
+  // Always zip and download in web/preview builds: showDirectoryPicker stalls
+  // in embedded webviews and after async worker builds outlive user activation.
   const zip = new JSZip();
   for (const file of files) {
     zip.file(file.relativePath, file.bytes);
   }
   const zipBytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
-  triggerBrowserDownload(`${folderName}.zip`, zipBytes, 'application/zip');
-  return `Downloaded ${folderName}.zip (${files.length} files).`;
+  const zipName = `${folderName}.zip`;
+  triggerBrowserDownload(zipName, zipBytes, 'application/zip');
+  return {
+    message: `Downloaded ${zipName} (${files.length} files).`,
+    downloadFilename: zipName,
+    downloadBytes: zipBytes,
+    mimeType: 'application/zip',
+  };
 }
 
 export async function saveBytesFile(
@@ -207,7 +206,7 @@ export async function saveBytesFile(
   bytes: Uint8Array,
   mimeType = 'application/octet-stream',
 ): Promise<boolean> {
-  if (window.api) {
+  if (typeof window !== 'undefined' && window.api) {
     const res = await window.api.export.saveBytesFile(suggestedName, bytes);
     return !res.canceled;
   }
@@ -216,6 +215,13 @@ export async function saveBytesFile(
 }
 
 function triggerBrowserDownload(filename: string, bytes: Uint8Array, mimeType: string): void {
+  if (
+    typeof document === 'undefined' ||
+    typeof URL === 'undefined' ||
+    typeof URL.createObjectURL !== 'function'
+  ) {
+    return;
+  }
   const blob = new Blob([Uint8Array.from(bytes)], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

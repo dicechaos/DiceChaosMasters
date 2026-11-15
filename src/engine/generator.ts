@@ -4,7 +4,6 @@ import type {
   BlankConfig,
   CaliperMetrics,
   DiceProjectState,
-  DieKind,
   DieSettings,
   FacePreviewInfo,
   GeneratedDieResult,
@@ -101,11 +100,45 @@ export interface GenerateDieOptions {
 }
 
 /**
+ * Resolves effective typography & high-face emblem settings for a specific die,
+ * applying any per-die overrides on top of global project typography defaults.
+ */
+export function resolveDieTypography(
+  globalTypography: DiceProjectState['typography'],
+  settings: DieSettings,
+): DiceProjectState['typography'] {
+  return {
+    ...globalTypography,
+    activeFontId: settings.fontIdOverride ?? globalTypography.activeFontId,
+    engravingDepthMm: settings.engravingDepthOverrideMm ?? globalTypography.engravingDepthMm,
+    useHighFaceEmblem:
+      settings.useHighFaceEmblemOverride ?? globalTypography.useHighFaceEmblem,
+    highFaceSvgId: settings.highFaceSvgIdOverride ?? globalTypography.highFaceSvgId,
+  };
+}
+
+/**
+ * Returns true if a die carries any per-die overrides (font, depth, emblem,
+ * font scale, blank clearance, or face-level engraving tweaks).
+ */
+export function hasDieCustomOverrides(settings: DieSettings): boolean {
+  return (
+    settings.fontIdOverride !== null ||
+    settings.engravingDepthOverrideMm !== null ||
+    settings.useHighFaceEmblemOverride !== null ||
+    settings.highFaceSvgIdOverride !== null ||
+    settings.blankClearanceOverrideMm !== null ||
+    Math.abs(settings.fontScaleMultiplier - 1.0) > 0.001 ||
+    Object.keys(settings.faceOverrides).length > 0
+  );
+}
+
+/**
  * Generates watertight Manifold meshes, matched insert blank, breach check,
  * optional point-down supports, and caliper measurements for a single die.
  */
 export async function generateDieGeometry(
-  kind: DieKind,
+  dieId: string,
   project: DiceProjectState,
   font: Font,
   options: GenerateDieOptions = {
@@ -116,7 +149,11 @@ export async function generateDieGeometry(
 ): Promise<GeneratedDieResult> {
   const t0 = performance.now();
   const wasm = await getManifold();
-  const settings: DieSettings = project.dice[kind];
+  const settings: DieSettings | undefined = project.dice[dieId];
+  if (!settings) {
+    throw new Error(`Die instance "${dieId}" does not exist in project.`);
+  }
+  const effectiveTypography = resolveDieTypography(project.typography, settings);
 
   const basePlanes = buildDieHalfSpaces(settings);
   const chamferedPlanes = applyEdgeChamfers(basePlanes, settings.edgeChamferMm);
@@ -128,7 +165,7 @@ export async function generateDieGeometry(
     wasm,
     baseFaces,
     settings,
-    project.typography,
+    effectiveTypography,
     font,
     project.svgAssets,
   );
@@ -163,7 +200,7 @@ export async function generateDieGeometry(
       wasm,
       basePlanes,
       cutters,
-      project.typography.engravingDepthMm,
+      effectiveTypography.engravingDepthMm,
       effectiveClearance,
       project.blanks.bubbleBevelMm,
     );
@@ -204,7 +241,7 @@ export async function generateDieGeometry(
   exportMasterManifold.delete();
 
   const nominal = computeNominalCalipers(settings);
-  const delta2 = 2 * (project.typography.engravingDepthMm + effectiveClearance);
+  const delta2 = 2 * (effectiveTypography.engravingDepthMm + effectiveClearance);
   const slicerFactor = 1 + project.exportConfig.shrinkageCompensationPct / 100;
 
   const calipers: CaliperMetrics = {
@@ -227,7 +264,8 @@ export async function generateDieGeometry(
   }));
 
   return {
-    kind,
+    dieId: settings.id ?? dieId,
+    kind: settings.kind,
     masterMesh,
     blankMesh,
     supportMesh,
@@ -242,7 +280,7 @@ export async function generateDieGeometry(
  * Generates export-ready binary manifold (optionally unioned with supports and shrinkage-scaled).
  */
 export async function generateExportManifold(
-  kind: DieKind,
+  dieId: string,
   project: DiceProjectState,
   font: Font,
   mode: 'master' | 'blank',
@@ -252,7 +290,11 @@ export async function generateExportManifold(
   calipers: CaliperMetrics;
 }> {
   const wasm = await getManifold();
-  const settings = project.dice[kind];
+  const settings = project.dice[dieId];
+  if (!settings) {
+    throw new Error(`Die instance "${dieId}" does not exist in project.`);
+  }
+  const effectiveTypography = resolveDieTypography(project.typography, settings);
   const basePlanes = buildDieHalfSpaces(settings);
   const chamferedPlanes = applyEdgeChamfers(basePlanes, settings.edgeChamferMm);
   const baseFaces = clipHalfSpaces(basePlanes);
@@ -263,7 +305,7 @@ export async function generateExportManifold(
     wasm,
     baseFaces,
     settings,
-    project.typography,
+    effectiveTypography,
     font,
     project.svgAssets,
   );
@@ -288,7 +330,7 @@ export async function generateExportManifold(
       wasm,
       basePlanes,
       cutters,
-      project.typography.engravingDepthMm,
+      effectiveTypography.engravingDepthMm,
       effectiveClearance,
       project.blanks.bubbleBevelMm,
     );
@@ -321,7 +363,7 @@ export async function generateExportManifold(
   targetManifold.delete();
 
   const nominal = computeNominalCalipers(settings);
-  const delta2 = 2 * (project.typography.engravingDepthMm + effectiveClearance);
+  const delta2 = 2 * (effectiveTypography.engravingDepthMm + effectiveClearance);
   const calipers: CaliperMetrics = {
     masterFaceToFaceMm: nominal.faceToFaceMm,
     masterHeightMm: nominal.heightMm,

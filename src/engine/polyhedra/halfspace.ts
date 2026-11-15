@@ -123,20 +123,30 @@ function computeOpticalIncircle(pts: Vec2[]): { center: Vec2; inradius: number }
     if (y > maxY) maxY = y;
   }
 
-  let best = computePolygonAreaCentroid2D(pts);
-  let bestDist = minEdgeSignedDistance(best, pts);
+  const areaCentroid = computePolygonAreaCentroid2D(pts);
+  const originDist = minEdgeSignedDistance([0, 0], pts);
+  const centroidDist = minEdgeSignedDistance(areaCentroid, pts);
+  const anchor: Vec2 = originDist >= centroidDist - 1e-6 ? [0, 0] : areaCentroid;
 
-  // Hierarchical 5x5 local search around centroid/bounds
+  // Tiny concave tie-breaker keeps flat medial-axis ridges (e.g. D4 prism & crystal belt faces)
+  // pinned to the symmetric anchor instead of drifting due to float64 rounding noise.
+  const scorePoint = (pt: Vec2): number =>
+    minEdgeSignedDistance(pt, pts) - 1e-7 * Math.hypot(pt[0] - anchor[0], pt[1] - anchor[1]);
+
+  let best: Vec2 = [...anchor];
+  let bestScore = scorePoint(best);
+
+  // Hierarchical 5x5 local search around anchor/bounds
   let spanX = (maxX - minX) * 0.45;
   let spanY = (maxY - minY) * 0.45;
-  for (let iter = 0; iter < 8; iter++) {
+  for (let iter = 0; iter < 10; iter++) {
     const center = best;
     for (let ix = -2; ix <= 2; ix++) {
       for (let iy = -2; iy <= 2; iy++) {
         const cand: Vec2 = [center[0] + (ix * spanX) / 2, center[1] + (iy * spanY) / 2];
-        const d = minEdgeSignedDistance(cand, pts);
-        if (d > bestDist) {
-          bestDist = d;
+        const s = scorePoint(cand);
+        if (s > bestScore) {
+          bestScore = s;
           best = cand;
         }
       }
@@ -145,7 +155,27 @@ function computeOpticalIncircle(pts: Vec2[]): { center: Vec2; inradius: number }
     spanY *= 0.48;
   }
 
-  return { center: best, inradius: Math.max(0, bestDist) };
+  const maxInradius = minEdgeSignedDistance(best, pts);
+  if (originDist >= maxInradius - 1e-5) {
+    return { center: [0, 0], inradius: Math.max(0, originDist) };
+  }
+  if (centroidDist >= maxInradius - 1e-5) {
+    return {
+      center: [
+        Math.abs(areaCentroid[0]) < 1e-7 ? 0 : areaCentroid[0],
+        Math.abs(areaCentroid[1]) < 1e-7 ? 0 : areaCentroid[1],
+      ],
+      inradius: Math.max(0, centroidDist),
+    };
+  }
+
+  return {
+    center: [
+      Math.abs(best[0]) < 1e-7 ? 0 : best[0],
+      Math.abs(best[1]) < 1e-7 ? 0 : best[1],
+    ],
+    inradius: Math.max(0, maxInradius),
+  };
 }
 
 /**

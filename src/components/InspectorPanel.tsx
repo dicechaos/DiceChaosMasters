@@ -1,22 +1,63 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
   BoxSelect,
+  Copy,
   Download,
   Layers,
+  RotateCcw,
   ShieldCheck,
   Sliders,
+  Sparkles,
+  Trash2,
   Type,
   Upload,
 } from 'lucide-react';
-import { BUNDLED_FONTS, DIE_DISPLAY_NAMES, SET_PRESETS } from '../engine/presets';
+import { resolveDieTypography } from '../engine/generator';
+import { hasDieSecondaryDimension } from '../engine/polyhedra/definitions';
+import {
+  BUNDLED_FONTS,
+  SET_PRESETS,
+  SET_TEMPLATE_LIST,
+  getDieInstanceLabel,
+  getDieInstanceShortTag,
+  getProjectDieOrder,
+  normalizeSelectedDice,
+} from '../engine/presets';
 import { useDiceStore } from '../store/useDiceStore';
 import type {
+  D10Variant,
+  D12Variant,
+  D2Variant,
   D3Variant,
   D4Variant,
+  D6Variant,
+  D8Variant,
+  DieSettings,
   InspectorTab,
+  OddDieVariant,
   SetPresetId,
+  SetTemplateId,
   SixNineIndicator,
 } from '../types/dice';
+
+function summarizeNumber(
+  values: number[],
+  eps = 0.005,
+): { mixed: boolean; value: number; min: number; max: number } {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return { mixed: max - min > eps, value: values[0], min, max };
+}
+
+function summarizeNullable<T>(
+  values: Array<T | null>,
+  isEqual?: (a: T | null, b: T | null) => boolean,
+): { mixed: boolean; value: T | null } {
+  const first = values[0] ?? null;
+  const eq = isEqual ?? ((a: T | null, b: T | null) => a === b);
+  const mixed = values.some((v) => !eq(v ?? null, first));
+  return { mixed, value: mixed ? null : first };
+}
 
 const TABS: Array<{ id: InspectorTab; label: string; icon: typeof Sliders }> = [
   { id: 'shape', label: 'Shape', icon: Sliders },
@@ -41,7 +82,16 @@ export function InspectorPanel() {
 
   const setActiveTab = useDiceStore((s) => s.setActiveTab);
   const applyPreset = useDiceStore((s) => s.applyPreset);
+  const applySetTemplate = useDiceStore((s) => s.applySetTemplate);
+  const duplicateDieInstance = useDiceStore((s) => s.duplicateDieInstance);
+  const requestRemoveDice = useDiceStore((s) => s.requestRemoveDice);
+  const inspectorFocusRequest = useDiceStore((s) => s.inspectorFocusRequest);
+  const clearInspectorFocusRequest = useDiceStore((s) => s.clearInspectorFocusRequest);
+  const selectDiceGroup = useDiceStore((s) => s.selectDiceGroup);
   const updateDieSettings = useDiceStore((s) => s.updateDieSettings);
+  const updateDiceSettings = useDiceStore((s) => s.updateDiceSettings);
+  const batchPatchDice = useDiceStore((s) => s.batchPatchDice);
+  const resetDiceOverrides = useDiceStore((s) => s.resetDiceOverrides);
   const setD4Variant = useDiceStore((s) => s.setD4Variant);
   const updateFaceOverride = useDiceStore((s) => s.updateFaceOverride);
   const updateTypography = useDiceStore((s) => s.updateTypography);
@@ -52,33 +102,285 @@ export function InspectorPanel() {
   const uploadSvgFile = useDiceStore((s) => s.uploadSvgFile);
   const setViewportMode = useDiceStore((s) => s.setViewportMode);
   const setExportModalOpen = useDiceStore((s) => s.setExportModalOpen);
+  const openExportModalWithScope = useDiceStore((s) => s.openExportModalWithScope);
 
   const fontUploadRef = useRef<HTMLInputElement>(null);
   const highSvgUploadRef = useRef<HTMLInputElement>(null);
   const faceSvgUploadRef = useRef<HTMLInputElement>(null);
+  const groupEnableRef = useRef<HTMLInputElement>(null);
+  const relBaseRef = useRef<Partial<
+    Record<string, { sizeMm: number; secondarySizeMm: number }>
+  > | null>(null);
 
-  const die = project.dice[project.activeDie];
+  const [groupSizingMode, setGroupSizingMode] = useState<'relative' | 'uniform'>('relative');
+  const [relPct, setRelPct] = useState<number>(100);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<SetTemplateId>('coin_twin_10');
+
+  const dieOrder = getProjectDieOrder(project);
+  const selectedDice = normalizeSelectedDice(project.selectedDice, project.activeDie, dieOrder);
+  const selectedCount = selectedDice.length;
+  const isGroupMode = selectedCount > 1;
+  const selectedSettings = selectedDice
+    .map((id) => project.dice[id])
+    .filter((d): d is DieSettings => Boolean(d));
+  const die = project.dice[project.activeDie] ?? project.dice[dieOrder[0]];
+  const activeDieLabel = getDieInstanceLabel(die, project);
+  const targetDice: string[] = isGroupMode ? selectedDice : [die.id];
+  const resolvedActiveTypo = resolveDieTypography(project.typography, die);
   const selectedFaceId = project.selectedFaceId;
   const selectedFace = activeResult?.faces.find((f) => f.id === selectedFaceId) ?? null;
   const faceOverride = selectedFaceId ? die.faceOverrides[selectedFaceId] : undefined;
 
-  const hasSecondaryDim =
-    die.kind === 'd2' ||
-    die.kind === 'd3' ||
-    (die.kind === 'd4' &&
-      (die.d4Variant === 'crystal' ||
-        die.d4Variant === 'arch' ||
-        die.d4Variant === 'pendulum'));
+  const allSelectedEnabled = selectedSettings.every((d) => d.enabled);
+  const someSelectedEnabled = selectedSettings.some((d) => d.enabled);
+  const mixedSelectedEnabled = someSelectedEnabled && !allSelectedEnabled;
+
+  useEffect(() => {
+    if (groupEnableRef.current) {
+      groupEnableRef.current.indeterminate = isGroupMode && mixedSelectedEnabled;
+    }
+  }, [isGroupMode, mixedSelectedEnabled]);
+
+  useEffect(() => {
+    relBaseRef.current = null;
+    setRelPct(100);
+  }, [selectedDice.join(',')]);
+
+  useEffect(() => {
+    if (!inspectorFocusRequest) return;
+    const { target } = inspectorFocusRequest;
+    clearInspectorFocusRequest();
+    requestAnimationFrame(() => {
+      if (target === 'die-label') {
+        const el = document.getElementById('die-instance-label-input') as HTMLInputElement | null;
+        el?.focus();
+        el?.select();
+      } else if (target === 'face-custom-text') {
+        const el = document.getElementById('face-custom-text') as HTMLInputElement | null;
+        el?.focus();
+        el?.select();
+      } else if (target === 'face-svg-upload') {
+        faceSvgUploadRef.current?.click();
+      } else if (target === 'die-font-override') {
+        const el = document.getElementById('die-font-override-select') as HTMLSelectElement | null;
+        el?.focus();
+      }
+    });
+  }, [inspectorFocusRequest, clearInspectorFocusRequest]);
+
+  const sizeSummary = summarizeNumber(selectedSettings.map((d) => d.sizeMm), 0.05);
+  const chamferSummary = summarizeNumber(selectedSettings.map((d) => d.edgeChamferMm), 0.005);
+  const fontMultSummary = summarizeNumber(
+    selectedSettings.map((d) => d.fontScaleMultiplier),
+    0.005,
+  );
+  const secDice = selectedDice.filter((id) => {
+    const d = project.dice[id];
+    return d ? hasDieSecondaryDimension(d) : false;
+  });
+  const secSummary =
+    secDice.length > 0
+      ? summarizeNumber(
+          secDice.map((id) => project.dice[id].secondarySizeMm),
+          0.05,
+        )
+      : null;
+  const clearanceSummary = summarizeNullable(
+    selectedSettings.map((d) => d.blankClearanceOverrideMm),
+    (a, b) => (a === null && b === null) || (a !== null && b !== null && Math.abs(a - b) < 0.005),
+  );
+  const fontOvSummary = summarizeNullable(selectedSettings.map((d) => d.fontIdOverride));
+  const depthOvSummary = summarizeNullable(
+    selectedSettings.map((d) => d.engravingDepthOverrideMm),
+    (a, b) => (a === null && b === null) || (a !== null && b !== null && Math.abs(a - b) < 0.005),
+  );
+  const emblemBoolSummary = summarizeNullable(
+    selectedSettings.map((d) => d.useHighFaceEmblemOverride),
+  );
+  const emblemSvgSummary = summarizeNullable(
+    selectedSettings.map((d) => d.highFaceSvgIdOverride),
+  );
+  const diceWithFaceOverrides = selectedSettings.filter(
+    (d) => Object.keys(d.faceOverrides).length > 0,
+  ).length;
+  const diceWithCustomOverrides = selectedSettings.filter(
+    (d) =>
+      d.fontIdOverride !== null ||
+      d.engravingDepthOverrideMm !== null ||
+      d.useHighFaceEmblemOverride !== null ||
+      d.highFaceSvgIdOverride !== null ||
+      Math.abs(d.fontScaleMultiplier - 1.0) > 0.001,
+  ).length;
+
+  const startRelativeBaseline = () => {
+    if (relBaseRef.current) return;
+    const snap: Partial<Record<string, { sizeMm: number; secondarySizeMm: number }>> = {};
+    for (const id of selectedDice) {
+      const cur = project.dice[id];
+      if (!cur) continue;
+      snap[id] = {
+        sizeMm: cur.sizeMm,
+        secondarySizeMm: cur.secondarySizeMm,
+      };
+    }
+    relBaseRef.current = snap;
+  };
+
+  const applyRelativeFactor = (pct: number) => {
+    startRelativeBaseline();
+    const baseMap = relBaseRef.current!;
+    const factor = pct / 100;
+    const patches: Partial<Record<string, Partial<DieSettings>>> = {};
+    for (const id of selectedDice) {
+      const base = baseMap[id];
+      const cur = project.dice[id];
+      if (!base || !cur) continue;
+      const nextSize = Math.max(8, Math.min(45, Math.round(base.sizeMm * factor * 2) / 2));
+      const p: Partial<DieSettings> = { sizeMm: nextSize };
+      if (hasDieSecondaryDimension(cur)) {
+        const minSec = cur.kind === 'd2' ? 2.0 : 14;
+        const maxSec = cur.kind === 'd2' ? 8.0 : 50;
+        const nextSec = Math.max(
+          minSec,
+          Math.min(maxSec, Math.round(base.secondarySizeMm * factor * 5) / 5),
+        );
+        p.secondarySizeMm = nextSec;
+      }
+      patches[id] = p;
+    }
+    setRelPct(pct);
+    batchPatchDice(patches, `dice-group:rel-size:${selectedDice.join('+')}`);
+  };
+
+  const commitRelativeBaseline = () => {
+    if (!relBaseRef.current) return;
+    relBaseRef.current = null;
+    setRelPct(100);
+  };
+
+  const nudgeGroupSizeMm = (deltaMm: number) => {
+    const patches: Partial<Record<string, Partial<DieSettings>>> = {};
+    for (const id of selectedDice) {
+      const cur = project.dice[id];
+      if (!cur) continue;
+      const nextSize = Math.max(8, Math.min(45, Math.round((cur.sizeMm + deltaMm) * 2) / 2));
+      patches[id] = { sizeMm: nextSize };
+    }
+    batchPatchDice(patches, null);
+  };
+
+  const scaleGroupPercentQuick = (pct: number) => {
+    const factor = pct / 100;
+    const patches: Partial<Record<string, Partial<DieSettings>>> = {};
+    for (const id of selectedDice) {
+      const cur = project.dice[id];
+      if (!cur) continue;
+      const nextSize = Math.max(8, Math.min(45, Math.round(cur.sizeMm * factor * 2) / 2));
+      const p: Partial<DieSettings> = { sizeMm: nextSize };
+      if (hasDieSecondaryDimension(cur)) {
+        const minSec = cur.kind === 'd2' ? 2.0 : 14;
+        const maxSec = cur.kind === 'd2' ? 8.0 : 50;
+        p.secondarySizeMm = Math.max(
+          minSec,
+          Math.min(maxSec, Math.round(cur.secondarySizeMm * factor * 5) / 5),
+        );
+      }
+      patches[id] = p;
+    }
+    batchPatchDice(patches, null);
+  };
+
+  const hasSecondaryDim = hasDieSecondaryDimension(die);
 
   const primaryDimLabel =
     die.kind === 'd2'
-      ? 'Coin Diameter'
-      : die.kind === 'd4' && (die.d4Variant === 'crystal' || die.d4Variant === 'arch' || die.d4Variant === 'pendulum')
+      ? die.d2Variant === 'round'
+        ? 'Coin Diameter'
+        : 'Coin Width'
+      : (die.kind === 'd4' &&
+            (die.d4Variant === 'crystal' ||
+              die.d4Variant === 'arch' ||
+              die.d4Variant === 'pendulum')) ||
+          ((die.kind === 'd5' || die.kind === 'd7' || die.kind === 'd9') &&
+            die.oddVariant !== 'trapezohedron') ||
+          (die.kind === 'd6' && die.d6Variant === 'crystal') ||
+          (die.kind === 'd8' && (die.d8Variant === 'crystal' || die.d8Variant === 'shard')) ||
+          ((die.kind === 'd10' || die.kind === 'd00') && die.d10Variant === 'crystal') ||
+          (die.kind === 'd12' && die.d12Variant === 'crystal')
         ? 'Body Width (F2F)'
         : 'Face-to-Face Size';
 
-  const secondaryDimLabel =
-    die.kind === 'd2' ? 'Coin Thickness' : 'Tip-to-Tip Length';
+  const allSecD2 =
+    secDice.length > 0 && secDice.every((id) => project.dice[id]?.kind === 'd2');
+  const allSecPrism =
+    secDice.length > 0 &&
+    secDice.every((id) => {
+      const d = project.dice[id];
+      return (
+        d &&
+        (d.kind === 'd3' ||
+          ((d.kind === 'd5' || d.kind === 'd7' || d.kind === 'd9') && d.oddVariant === 'prism'))
+      );
+    });
+  const someSecD2 = secDice.some((id) => project.dice[id]?.kind === 'd2');
+  const secondaryDimLabel = allSecD2
+    ? 'Coin Thickness'
+    : allSecPrism
+      ? 'Prism Height'
+      : someSecD2
+        ? 'Thickness / Length'
+        : 'Tip-to-Tip Length';
+
+  const d2Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd2');
+  const d4Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd4');
+  const d3Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd3');
+  const oddIds = targetDice.filter((id) => {
+    const k = project.dice[id]?.kind;
+    return k === 'd5' || k === 'd7' || k === 'd9';
+  });
+  const d6Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd6');
+  const d8Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd8');
+  const d10ShapeIds = targetDice.filter((id) => {
+    const k = project.dice[id]?.kind;
+    return k === 'd10' || k === 'd00';
+  });
+  const d12Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd12');
+  const d10Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd10');
+  const d00Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd00');
+  const d20Ids = targetDice.filter((id) => project.dice[id]?.kind === 'd20');
+
+  const d2Summary = summarizeNullable(d2Ids.map((id) => project.dice[id]?.d2Variant ?? null));
+  const d4Summary = summarizeNullable(d4Ids.map((id) => project.dice[id]?.d4Variant ?? null));
+  const d3Summary = summarizeNullable(d3Ids.map((id) => project.dice[id]?.d3Variant ?? null));
+  const oddSummary = summarizeNullable(oddIds.map((id) => project.dice[id]?.oddVariant ?? null));
+  const d6Summary = summarizeNullable(d6Ids.map((id) => project.dice[id]?.d6Variant ?? null));
+  const d8Summary = summarizeNullable(d8Ids.map((id) => project.dice[id]?.d8Variant ?? null));
+  const d10ShapeSummary = summarizeNullable(
+    d10ShapeIds.map((id) => project.dice[id]?.d10Variant ?? null),
+  );
+  const d12Summary = summarizeNullable(d12Ids.map((id) => project.dice[id]?.d12Variant ?? null));
+  const d10Summary = summarizeNullable(d10Ids.map((id) => project.dice[id]?.d10Numbering ?? null));
+  const d00Summary = summarizeNullable(d00Ids.map((id) => project.dice[id]?.d00Orientation ?? null));
+  const d20Summary = summarizeNullable(d20Ids.map((id) => project.dice[id]?.d20Numbering ?? null));
+
+  const applyElongatedVariantPatch = (
+    ids: string[],
+    patch: Partial<DieSettings>,
+    needsElongation: boolean,
+    historySuffix: string,
+  ) => {
+    const patches: Partial<Record<string, Partial<DieSettings>>> = {};
+    for (const id of ids) {
+      const cur = project.dice[id];
+      if (!cur) continue;
+      const itemPatch: Partial<DieSettings> = { ...patch };
+      if (needsElongation && cur.secondarySizeMm <= cur.sizeMm * 1.08) {
+        itemPatch.secondarySizeMm = Math.round(cur.sizeMm * 1.5 * 2) / 2;
+      }
+      patches[id] = itemPatch;
+    }
+    batchPatchDice(patches, `dice:${ids.join('+')}:${historySuffix}`);
+  };
 
   const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const idx = TABS.findIndex((t) => t.id === project.activeTab);
@@ -124,6 +426,76 @@ export function InspectorPanel() {
         })}
       </div>
 
+      {isGroupMode && (
+        <div className="group-banner" role="region" aria-label="Active multi-die group selection">
+          <div className="group-banner-top">
+            <span className="group-banner-title">
+              Group Editing ({selectedCount} Dice)
+            </span>
+            <button
+              type="button"
+              className="btn btn-compact"
+              onClick={() => selectDiceGroup('single')}
+              title="Exit group editing (Esc)"
+            >
+              Single (Esc)
+            </button>
+          </div>
+          <div className="group-chip-list">
+            {selectedDice.map((id) => {
+              const d = project.dice[id];
+              return (
+                <span
+                  key={id}
+                  className={`group-die-pill ${id === die.id ? 'primary' : ''}`}
+                >
+                  {d ? getDieInstanceShortTag(d, project) : id.toUpperCase()}
+                </span>
+              );
+            })}
+          </div>
+          <label className="checkbox-label">
+            <input
+              ref={groupEnableRef}
+              id="group-include-export-checkbox"
+              type="checkbox"
+              checked={allSelectedEnabled}
+              onChange={(e) =>
+                updateDiceSettings(selectedDice, { enabled: e.target.checked })
+              }
+            />
+            <span>
+              Include selected in export
+              {mixedSelectedEnabled && (
+                <span className="mixed-badge" style={{ marginLeft: 6 }}>
+                  Mixed
+                </span>
+              )}
+            </span>
+          </label>
+          <div className="nudge-row">
+            <button
+              type="button"
+              className="btn btn-primary btn-compact"
+              onClick={() => openExportModalWithScope('selected')}
+            >
+              <Download size={13} aria-hidden="true" />
+              Export Selected ({selectedCount})…
+            </button>
+            <button
+              type="button"
+              className="btn btn-compact"
+              disabled={dieOrder.length <= 1}
+              onClick={() => requestRemoveDice(selectedDice)}
+              title="Remove selected dice from set (Delete)"
+            >
+              <Trash2 size={13} aria-hidden="true" />
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="inspector-scroll">
         {/* TAB 1: SHAPE & SIZING */}
         <div
@@ -132,6 +504,38 @@ export function InspectorPanel() {
           hidden={project.activeTab !== 'shape'}
         >
           <div className="inspector-body">
+            <section className="panel-section">
+              <h2 className="section-heading">
+                <span>Quick Game Set Templates</span>
+                <span className="field-value">{dieOrder.length} dice</span>
+              </h2>
+              <div className="control-pair" style={{ gridTemplateColumns: '1fr auto' }}>
+                <select
+                  id="quick-set-template-select"
+                  aria-label="Quick game set template"
+                  className="select-input"
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value as SetTemplateId)}
+                >
+                  {SET_TEMPLATE_LIST.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.label} ({tpl.shortLabel})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-compact"
+                  onClick={() => applySetTemplate(selectedTemplateId)}
+                >
+                  Apply Set
+                </button>
+              </div>
+              <p className="field-hint" style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
+                {SET_TEMPLATE_LIST.find((t) => t.id === selectedTemplateId)?.description}
+              </p>
+            </section>
+
             <section className="panel-section">
               <h2 className="section-heading">Global Set Scale</h2>
               <div className="preset-grid" role="group" aria-label="Set Sizing Presets">
@@ -154,22 +558,116 @@ export function InspectorPanel() {
 
             <section className="panel-section">
               <h2 className="section-heading">
-                <span>{DIE_DISPLAY_NAMES[die.kind]} Geometry</span>
-                <span style={{ color: 'var(--brand-amber-bright)' }}>
-                  {die.sizeMm.toFixed(1)} mm
+                <span>
+                  {isGroupMode
+                    ? `Group Geometry (${selectedCount} dice)`
+                    : `${activeDieLabel} Geometry`}
                 </span>
+                {sizeSummary.mixed ? (
+                  <span className="mixed-badge">
+                    Mixed {sizeSummary.min.toFixed(1)}–{sizeSummary.max.toFixed(1)} mm
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--brand-amber-bright)' }}>
+                    {sizeSummary.value.toFixed(1)} mm
+                  </span>
+                )}
               </h2>
 
-              {die.kind === 'd4' && (
+              {!isGroupMode && (
                 <div className="field-row">
-                  <span className="field-label-line">D4 Shape Variant (6 Styles)</span>
+                  <label htmlFor="die-instance-label-input" className="field-label-line">
+                    <span>Die Instance Label</span>
+                    <span className="field-value">{die.id}</span>
+                  </label>
+                  <input
+                    id="die-instance-label-input"
+                    type="text"
+                    className="text-input"
+                    placeholder="e.g. Logo, Numbers, Hope, Fear…"
+                    value={die.customLabel ?? ''}
+                    onChange={(e) => updateDieSettings(die.id, { customLabel: e.target.value })}
+                  />
+                  <div className="nudge-row">
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => duplicateDieInstance(die.id)}
+                      title="Duplicate active die (Ctrl+D)"
+                    >
+                      <Copy size={12} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() =>
+                        duplicateDieInstance(die.id, { asLogoNumbersPair: true })
+                      }
+                      title="Create twin Logo + Numbers Only pair"
+                    >
+                      <Sparkles size={12} aria-hidden="true" />
+                      Logo + Numbers Pair
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      disabled={dieOrder.length <= 1}
+                      onClick={() => requestRemoveDice([die.id])}
+                      title="Remove this die from set (Delete)"
+                    >
+                      <Trash2 size={12} aria-hidden="true" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {d2Ids.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D2 Coin Silhouette (6 Styles)</span>
+                    {d2Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'round', title: 'Round Coin', desc: 'Classic 360° circle' },
+                        { id: 'oval', title: 'Oval Coin', desc: '1.28:1 elliptical medallion' },
+                        { id: 'rounded_square', title: 'Rounded Square', desc: 'Cushion squircle coin' },
+                        { id: 'hexagon', title: 'Hex Medallion', desc: '6-sided flat guild token' },
+                        { id: 'octagon', title: 'Octagon Coin', desc: '8-sided beveled token' },
+                        { id: 'shield', title: 'Shield Crest', desc: 'Gothic heater shield' },
+                      ] as Array<{ id: D2Variant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!d2Summary.mixed && d2Summary.value === v.id}
+                        onClick={() => updateDiceSettings(d2Ids, { d2Variant: v.id }, 'd2Variant')}
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d4Ids.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D4 Shape Variant (6 Styles)</span>
+                    {d4Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
                   <div className="variant-grid">
                     {D4_VARIANT_CARDS.map((v) => (
                       <button
                         key={v.id}
                         type="button"
                         className="choice-tile"
-                        aria-pressed={die.d4Variant === v.id}
+                        aria-pressed={!d4Summary.mixed && d4Summary.value === v.id}
                         onClick={() => setD4Variant(v.id)}
                       >
                         <span className="choice-tile-title">{v.title}</span>
@@ -180,9 +678,12 @@ export function InspectorPanel() {
                 </div>
               )}
 
-              {die.kind === 'd3' && (
+              {d3Ids.length > 0 && (
                 <div className="field-row">
-                  <span className="field-label-line">D3 Shape Style</span>
+                  <span className="field-label-line">
+                    <span>D3 Shape Style</span>
+                    {d3Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
                   <div className="variant-grid">
                     {(
                       [
@@ -194,8 +695,8 @@ export function InspectorPanel() {
                         key={v.id}
                         type="button"
                         className="choice-tile"
-                        aria-pressed={die.d3Variant === v.id}
-                        onClick={() => updateDieSettings('d3', { d3Variant: v.id })}
+                        aria-pressed={!d3Summary.mixed && d3Summary.value === v.id}
+                        onClick={() => updateDiceSettings(d3Ids, { d3Variant: v.id }, 'd3Variant')}
                       >
                         <span className="choice-tile-title">{v.title}</span>
                         <span className="choice-tile-desc">{v.desc}</span>
@@ -205,135 +706,486 @@ export function InspectorPanel() {
                 </div>
               )}
 
-              {die.kind === 'd10' && (
+              {oddIds.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>Odd-Sided Shape Style</span>
+                    {oddSummary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'trapezohedron', title: 'Trapezohedron (2×)', desc: 'Isohedral 2N-kite polyhedron' },
+                        { id: 'crystal', title: 'Crystal Barrel (2×)', desc: 'Pointed 2N-facet crystal' },
+                        { id: 'prism', title: 'Zocchi Prism (1×)', desc: 'Single-numbered N-face prism' },
+                      ] as Array<{ id: OddDieVariant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!oddSummary.mixed && oddSummary.value === v.id}
+                        onClick={() =>
+                          applyElongatedVariantPatch(
+                            oddIds,
+                            { oddVariant: v.id },
+                            v.id === 'crystal' || v.id === 'prism',
+                            'oddVariant',
+                          )
+                        }
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d6Ids.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D6 Shape Style</span>
+                    {d6Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'cube', title: 'Standard Cube', desc: 'Classic 6-face cube' },
+                        { id: 'rhombic', title: 'Rhombic Diamond', desc: '63° skewed diamond cube' },
+                        { id: 'truncated', title: 'Truncated Cube', desc: 'Corner-chamfered cube' },
+                        { id: 'crystal', title: 'Crystal Barrel', desc: '6-sided pointed crystal' },
+                      ] as Array<{ id: D6Variant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!d6Summary.mixed && d6Summary.value === v.id}
+                        onClick={() =>
+                          applyElongatedVariantPatch(
+                            d6Ids,
+                            { d6Variant: v.id },
+                            v.id === 'crystal',
+                            'd6Variant',
+                          )
+                        }
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d8Ids.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D8 Shape Style</span>
+                    {d8Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'octahedron', title: 'Standard Octahedron', desc: 'Regular 8-triangle solid' },
+                        { id: 'shard', title: 'Gem Shard', desc: 'Elongated diamond bipyramid' },
+                        { id: 'crystal', title: 'Crystal Barrel', desc: '8-sided pointed crystal' },
+                      ] as Array<{ id: D8Variant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!d8Summary.mixed && d8Summary.value === v.id}
+                        onClick={() =>
+                          applyElongatedVariantPatch(
+                            d8Ids,
+                            { d8Variant: v.id },
+                            v.id === 'crystal' || v.id === 'shard',
+                            'd8Variant',
+                          )
+                        }
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d10ShapeIds.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D10 / D00 Shape Style</span>
+                    {d10ShapeSummary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'trapezohedron', title: 'Standard Kite', desc: 'Pentagonal trapezohedron' },
+                        { id: 'crystal', title: 'Crystal Barrel', desc: '10-sided pointed crystal' },
+                      ] as Array<{ id: D10Variant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!d10ShapeSummary.mixed && d10ShapeSummary.value === v.id}
+                        onClick={() =>
+                          applyElongatedVariantPatch(
+                            d10ShapeIds,
+                            { d10Variant: v.id },
+                            v.id === 'crystal',
+                            'd10Variant',
+                          )
+                        }
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d12Ids.length > 0 && (
+                <div className="field-row">
+                  <span className="field-label-line">
+                    <span>D12 Shape Style</span>
+                    {d12Summary.mixed && <span className="mixed-badge">Mixed</span>}
+                  </span>
+                  <div className="variant-grid">
+                    {(
+                      [
+                        { id: 'pentagonal', title: 'Pentagonal D12', desc: 'Regular dodecahedron' },
+                        { id: 'rhombic', title: 'Rhombic D12', desc: 'Catalan diamond dodecahedron' },
+                        { id: 'crystal', title: 'Crystal Barrel', desc: '12-sided pointed crystal' },
+                      ] as Array<{ id: D12Variant; title: string; desc: string }>
+                    ).map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="choice-tile"
+                        aria-pressed={!d12Summary.mixed && d12Summary.value === v.id}
+                        onClick={() =>
+                          applyElongatedVariantPatch(
+                            d12Ids,
+                            { d12Variant: v.id },
+                            v.id === 'crystal',
+                            'd12Variant',
+                          )
+                        }
+                      >
+                        <span className="choice-tile-title">{v.title}</span>
+                        <span className="choice-tile-desc">{v.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d10Ids.length > 0 && (
                 <div className="field-row">
                   <label htmlFor="d10-numbering-select" className="field-label-line">
-                    D10 Numbering Range
+                    <span>D10 Numbering Range</span>
+                    {d10Summary.mixed && <span className="mixed-badge">Mixed</span>}
                   </label>
                   <select
                     id="d10-numbering-select"
                     className="select-input"
-                    value={die.d10Numbering}
-                    onChange={(e) =>
-                      updateDieSettings('d10', {
-                        d10Numbering: e.target.value as '0_9' | '1_10',
-                      })
-                    }
+                    value={d10Summary.mixed ? '__mixed__' : (d10Summary.value ?? '0_9')}
+                    onChange={(e) => {
+                      if (e.target.value === '__mixed__') return;
+                      updateDiceSettings(
+                        d10Ids,
+                        { d10Numbering: e.target.value as '0_9' | '1_10' },
+                        'd10Numbering',
+                      );
+                    }}
                   >
+                    {d10Summary.mixed && (
+                      <option value="__mixed__" disabled>
+                        Mixed numbering ranges…
+                      </option>
+                    )}
                     <option value="0_9">Standard RPG (0 – 9)</option>
                     <option value="1_10">Sequential (1 – 10)</option>
                   </select>
                 </div>
               )}
 
-              {die.kind === 'd00' && (
+              {d00Ids.length > 0 && (
                 <div className="field-row">
                   <label htmlFor="d00-orient-select" className="field-label-line">
-                    Percentile Orientation
+                    <span>Percentile Orientation</span>
+                    {d00Summary.mixed && <span className="mixed-badge">Mixed</span>}
                   </label>
                   <select
                     id="d00-orient-select"
                     className="select-input"
-                    value={die.d00Orientation}
-                    onChange={(e) =>
-                      updateDieSettings('d00', {
-                        d00Orientation: e.target.value as 'horizontal' | 'vertical',
-                      })
-                    }
+                    value={d00Summary.mixed ? '__mixed__' : (d00Summary.value ?? 'horizontal')}
+                    onChange={(e) => {
+                      if (e.target.value === '__mixed__') return;
+                      updateDiceSettings(
+                        d00Ids,
+                        { d00Orientation: e.target.value as 'horizontal' | 'vertical' },
+                        'd00Orientation',
+                      );
+                    }}
                   >
+                    {d00Summary.mixed && (
+                      <option value="__mixed__" disabled>
+                        Mixed orientations…
+                      </option>
+                    )}
                     <option value="horizontal">Horizontal (Across Wide Kite)</option>
                     <option value="vertical">Vertical (Along Kite Axis)</option>
                   </select>
                 </div>
               )}
 
-              {die.kind === 'd20' && (
+              {d20Ids.length > 0 && (
                 <div className="field-row">
                   <label htmlFor="d20-layout-select" className="field-label-line">
-                    D20 Face Layout
+                    <span>D20 Face Layout</span>
+                    {d20Summary.mixed && <span className="mixed-badge">Mixed</span>}
                   </label>
                   <select
                     id="d20-layout-select"
                     className="select-input"
-                    value={die.d20Numbering}
-                    onChange={(e) =>
-                      updateDieSettings('d20', {
-                        d20Numbering: e.target.value as 'balanced' | 'spindown',
-                      })
-                    }
+                    value={d20Summary.mixed ? '__mixed__' : (d20Summary.value ?? 'balanced')}
+                    onChange={(e) => {
+                      if (e.target.value === '__mixed__') return;
+                      updateDiceSettings(
+                        d20Ids,
+                        { d20Numbering: e.target.value as 'balanced' | 'spindown' },
+                        'd20Numbering',
+                      );
+                    }}
                   >
+                    {d20Summary.mixed && (
+                      <option value="__mixed__" disabled>
+                        Mixed face layouts…
+                      </option>
+                    )}
                     <option value="balanced">Balanced RPG (Opposite Sum = 21)</option>
                     <option value="spindown">Spindown Counter (Sequential Path)</option>
                   </select>
                 </div>
               )}
 
-              <div className="field-row">
-                <label htmlFor="die-size-range" className="field-label-line">
-                  <span>{primaryDimLabel}</span>
-                  <span className="field-value">{die.sizeMm.toFixed(1)} mm</span>
-                </label>
-                <div className="control-pair">
-                  <input
-                    id="die-size-range"
-                    type="range"
-                    min={8}
-                    max={45}
-                    step={0.5}
-                    value={die.sizeMm}
-                    onChange={(e) =>
-                      updateDieSettings(die.kind, { sizeMm: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label={`${primaryDimLabel} in millimeters`}
-                    className="num-input"
-                    min={8}
-                    max={45}
-                    step={0.5}
-                    value={die.sizeMm}
-                    onChange={(e) =>
-                      updateDieSettings(die.kind, {
-                        sizeMm: Math.max(8, Math.min(45, Number(e.target.value) || 8)),
-                      })
-                    }
-                  />
+              {isGroupMode && (
+                <div className="field-row">
+                  <div className="field-label-line">
+                    <span>Group Sizing Mode</span>
+                  </div>
+                  <div className="theme-segment" role="group" aria-label="Group sizing mode">
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      aria-pressed={groupSizingMode === 'relative'}
+                      onClick={() => setGroupSizingMode('relative')}
+                    >
+                      Relative Scale (%)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      aria-pressed={groupSizingMode === 'uniform'}
+                      onClick={() => setGroupSizingMode('uniform')}
+                    >
+                      Exact Uniform (mm)
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {hasSecondaryDim && (
+              {isGroupMode && groupSizingMode === 'relative' ? (
+                <div className="field-row">
+                  <label htmlFor="group-rel-scale-range" className="field-label-line">
+                    <span>Proportional Scale</span>
+                    <span className="field-value">
+                      {relPct}% ·{' '}
+                      {sizeSummary.mixed
+                        ? `${sizeSummary.min.toFixed(1)}–${sizeSummary.max.toFixed(1)} mm`
+                        : `${sizeSummary.value.toFixed(1)} mm`}
+                    </span>
+                  </label>
+                  <div className="control-pair">
+                    <input
+                      id="group-rel-scale-range"
+                      type="range"
+                      min={50}
+                      max={150}
+                      step={1}
+                      value={relPct}
+                      onPointerDown={startRelativeBaseline}
+                      onChange={(e) => applyRelativeFactor(Number(e.target.value))}
+                      onPointerUp={commitRelativeBaseline}
+                      onPointerCancel={commitRelativeBaseline}
+                      onBlur={commitRelativeBaseline}
+                    />
+                    <input
+                      type="number"
+                      aria-label="Relative group scale percentage"
+                      className="num-input"
+                      min={50}
+                      max={150}
+                      step={1}
+                      value={relPct}
+                      onFocus={startRelativeBaseline}
+                      onChange={(e) => {
+                        const v = Math.max(50, Math.min(150, Number(e.target.value) || 100));
+                        applyRelativeFactor(v);
+                      }}
+                      onBlur={commitRelativeBaseline}
+                    />
+                  </div>
+                  <div className="nudge-row" role="group" aria-label="Quick size nudges">
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => nudgeGroupSizeMm(-1)}
+                    >
+                      -1 mm
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => nudgeGroupSizeMm(-0.5)}
+                    >
+                      -0.5 mm
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => nudgeGroupSizeMm(0.5)}
+                    >
+                      +0.5 mm
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => nudgeGroupSizeMm(1)}
+                    >
+                      +1 mm
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => scaleGroupPercentQuick(90)}
+                    >
+                      90%
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-compact"
+                      onClick={() => scaleGroupPercentQuick(110)}
+                    >
+                      110%
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="field-row">
+                  <label htmlFor="die-size-range" className="field-label-line">
+                    <span>{isGroupMode ? 'Uniform Size (All Selected)' : primaryDimLabel}</span>
+                    {isGroupMode && sizeSummary.mixed ? (
+                      <span className="mixed-badge">
+                        Mixed ({sizeSummary.min.toFixed(1)}–{sizeSummary.max.toFixed(1)} mm)
+                      </span>
+                    ) : (
+                      <span className="field-value">{sizeSummary.value.toFixed(1)} mm</span>
+                    )}
+                  </label>
+                  <div className="control-pair">
+                    <input
+                      id="die-size-range"
+                      type="range"
+                      min={8}
+                      max={45}
+                      step={0.5}
+                      value={sizeSummary.value}
+                      onChange={(e) =>
+                        updateDiceSettings(targetDice, { sizeMm: Number(e.target.value) })
+                      }
+                    />
+                    <input
+                      type="number"
+                      aria-label={`${isGroupMode ? 'Uniform size' : primaryDimLabel} in millimeters`}
+                      className="num-input"
+                      placeholder={sizeSummary.mixed ? 'Mix' : undefined}
+                      min={8}
+                      max={45}
+                      step={0.5}
+                      value={sizeSummary.mixed ? '' : sizeSummary.value}
+                      onChange={(e) =>
+                        updateDiceSettings(targetDice, {
+                          sizeMm: Math.max(8, Math.min(45, Number(e.target.value) || 8)),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(isGroupMode ? secDice.length > 0 && secSummary !== null : hasSecondaryDim) && (
                 <div className="field-row">
                   <label htmlFor="die-sec-range" className="field-label-line">
-                    <span>{secondaryDimLabel}</span>
-                    <span className="field-value">{die.secondarySizeMm.toFixed(1)} mm</span>
+                    <span>
+                      {isGroupMode
+                        ? `${secondaryDimLabel} (${secDice
+                            .map((id) =>
+                              project.dice[id]
+                                ? getDieInstanceShortTag(project.dice[id], project)
+                                : id.toUpperCase(),
+                            )
+                            .join(', ')})`
+                        : secondaryDimLabel}
+                    </span>
+                    {isGroupMode && secSummary?.mixed ? (
+                      <span className="mixed-badge">
+                        Mixed ({secSummary.min.toFixed(1)}–{secSummary.max.toFixed(1)} mm)
+                      </span>
+                    ) : (
+                      <span className="field-value">
+                        {(secSummary?.value ?? die.secondarySizeMm).toFixed(1)} mm
+                      </span>
+                    )}
                   </label>
                   <div className="control-pair">
                     <input
                       id="die-sec-range"
                       type="range"
-                      min={die.kind === 'd2' ? 2.0 : 14}
-                      max={die.kind === 'd2' ? 8.0 : 50}
+                      min={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 2.0 : 14}
+                      max={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 8.0 : 50}
                       step={0.2}
-                      value={die.secondarySizeMm}
+                      value={secSummary?.value ?? die.secondarySizeMm}
                       onChange={(e) =>
-                        updateDieSettings(die.kind, {
-                          secondarySizeMm: Number(e.target.value),
-                        })
+                        updateDiceSettings(
+                          secDice.length > 0 ? secDice : [die.id],
+                          { secondarySizeMm: Number(e.target.value) },
+                          'secondarySizeMm',
+                        )
                       }
                     />
                     <input
                       type="number"
                       aria-label={`${secondaryDimLabel} in millimeters`}
                       className="num-input"
-                      min={die.kind === 'd2' ? 2.0 : 14}
-                      max={die.kind === 'd2' ? 8.0 : 50}
+                      placeholder={secSummary?.mixed ? 'Mix' : undefined}
+                      min={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 2.0 : 14}
+                      max={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 8.0 : 50}
                       step={0.2}
-                      value={die.secondarySizeMm}
+                      value={secSummary?.mixed ? '' : (secSummary?.value ?? die.secondarySizeMm)}
                       onChange={(e) =>
-                        updateDieSettings(die.kind, {
-                          secondarySizeMm: Number(e.target.value) || 3.6,
-                        })
+                        updateDiceSettings(
+                          secDice.length > 0 ? secDice : [die.id],
+                          { secondarySizeMm: Number(e.target.value) || 3.6 },
+                          'secondarySizeMm',
+                        )
                       }
                     />
                   </div>
@@ -343,11 +1195,17 @@ export function InspectorPanel() {
               <div className="field-row">
                 <label htmlFor="edge-chamfer-range" className="field-label-line">
                   <span>Edge Chamfer / Bevel</span>
-                  <span className="field-value">
-                    {die.edgeChamferMm <= 0.005
-                      ? '0.00 mm (Hard Edge)'
-                      : `${die.edgeChamferMm.toFixed(2)} mm`}
-                  </span>
+                  {chamferSummary.mixed ? (
+                    <span className="mixed-badge">
+                      Mixed ({chamferSummary.min.toFixed(2)}–{chamferSummary.max.toFixed(2)} mm)
+                    </span>
+                  ) : (
+                    <span className="field-value">
+                      {chamferSummary.value <= 0.005
+                        ? '0.00 mm (Hard Edge)'
+                        : `${chamferSummary.value.toFixed(2)} mm`}
+                    </span>
+                  )}
                 </label>
                 <div className="control-pair">
                   <input
@@ -356,22 +1214,23 @@ export function InspectorPanel() {
                     min={0}
                     max={1.0}
                     step={0.05}
-                    value={die.edgeChamferMm}
+                    value={chamferSummary.value}
                     onChange={(e) =>
-                      updateDieSettings(die.kind, { edgeChamferMm: Number(e.target.value) })
+                      updateDiceSettings(targetDice, { edgeChamferMm: Number(e.target.value) })
                     }
                   />
                   <input
                     type="number"
                     aria-label="Edge chamfer in millimeters"
                     className="num-input"
+                    placeholder={chamferSummary.mixed ? 'Mix' : undefined}
                     min={0}
                     max={1.0}
                     step={0.05}
-                    value={die.edgeChamferMm}
+                    value={chamferSummary.mixed ? '' : chamferSummary.value}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      updateDieSettings(die.kind, {
+                      updateDiceSettings(targetDice, {
                         edgeChamferMm: Number.isNaN(v) ? 0 : Math.max(0, Math.min(1.0, v)),
                       });
                     }}
@@ -486,8 +1345,18 @@ export function InspectorPanel() {
 
               <div className="field-row">
                 <label htmlFor="die-font-mult" className="field-label-line">
-                  <span>{DIE_DISPLAY_NAMES[die.kind]} Font Multiplier</span>
-                  <span className="field-value">{die.fontScaleMultiplier.toFixed(2)}×</span>
+                  <span>
+                    {isGroupMode
+                      ? `Group Font Multiplier (${selectedCount} dice)`
+                      : `${activeDieLabel} Font Multiplier`}
+                  </span>
+                  {fontMultSummary.mixed ? (
+                    <span className="mixed-badge">
+                      Mixed ({fontMultSummary.min.toFixed(2)}–{fontMultSummary.max.toFixed(2)}×)
+                    </span>
+                  ) : (
+                    <span className="field-value">{fontMultSummary.value.toFixed(2)}×</span>
+                  )}
                 </label>
                 <div className="control-pair">
                   <input
@@ -496,9 +1365,9 @@ export function InspectorPanel() {
                     min={0.5}
                     max={1.5}
                     step={0.05}
-                    value={die.fontScaleMultiplier}
+                    value={fontMultSummary.value}
                     onChange={(e) =>
-                      updateDieSettings(die.kind, {
+                      updateDiceSettings(targetDice, {
                         fontScaleMultiplier: Number(e.target.value),
                       })
                     }
@@ -507,12 +1376,13 @@ export function InspectorPanel() {
                     type="number"
                     aria-label="Per-die font multiplier"
                     className="num-input"
+                    placeholder={fontMultSummary.mixed ? 'Mix' : undefined}
                     min={0.5}
                     max={1.5}
                     step={0.05}
-                    value={die.fontScaleMultiplier}
+                    value={fontMultSummary.mixed ? '' : fontMultSummary.value}
                     onChange={(e) =>
-                      updateDieSettings(die.kind, {
+                      updateDiceSettings(targetDice, {
                         fontScaleMultiplier: Number(e.target.value) || 1.0,
                       })
                     }
@@ -704,12 +1574,277 @@ export function InspectorPanel() {
 
             <section className="panel-section">
               <h2 className="section-heading">
+                <span>
+                  {isGroupMode
+                    ? `Group Overrides (${selectedCount} dice)`
+                    : `${activeDieLabel} Overrides`}
+                </span>
+                {diceWithCustomOverrides > 0 && (
+                  <span className="mixed-badge">
+                    {isGroupMode ? `${diceWithCustomOverrides} Custom` : 'Custom'}
+                  </span>
+                )}
+              </h2>
+
+              <div className="field-row">
+                <label htmlFor="die-font-override-select" className="field-label-line">
+                  <span>Font Override</span>
+                  <span className="field-value">
+                    {fontOvSummary.mixed
+                      ? 'Mixed'
+                      : fontOvSummary.value === null
+                        ? 'Global Default'
+                        : 'Overridden'}
+                  </span>
+                </label>
+                <select
+                  id="die-font-override-select"
+                  className="select-input"
+                  value={fontOvSummary.mixed ? '__mixed__' : (fontOvSummary.value ?? '')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__mixed__') return;
+                    updateDiceSettings(
+                      targetDice,
+                      { fontIdOverride: val === '' ? null : val },
+                      'fontIdOverride',
+                    );
+                  }}
+                >
+                  {fontOvSummary.mixed && (
+                    <option value="__mixed__" disabled>
+                      Mixed font overrides across selection…
+                    </option>
+                  )}
+                  <option value="">Inherit Global Font</option>
+                  <optgroup label="Bundled RPG Fonts (SIL OFL Free)">
+                    {BUNDLED_FONTS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {project.uploadedFonts.length > 0 && (
+                    <optgroup label="Uploaded Custom Fonts">
+                      {project.uploadedFonts.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {systemFonts.length > 0 && (
+                    <optgroup label={`Installed OS Fonts (${systemFonts.length})`}>
+                      {systemFonts.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              <div className="field-row">
+                <label htmlFor="die-depth-override-range" className="field-label-line">
+                  <span>Engraving Depth Override</span>
+                  {depthOvSummary.mixed ? (
+                    <span className="mixed-badge">Mixed</span>
+                  ) : (
+                    <span className="field-value">
+                      {depthOvSummary.value === null
+                        ? `Global (${project.typography.engravingDepthMm.toFixed(2)} mm)`
+                        : `${depthOvSummary.value.toFixed(2)} mm`}
+                    </span>
+                  )}
+                </label>
+                <div className="control-pair">
+                  <input
+                    id="die-depth-override-range"
+                    type="range"
+                    min={0.3}
+                    max={1.4}
+                    step={0.05}
+                    value={depthOvSummary.value ?? project.typography.engravingDepthMm}
+                    onChange={(e) =>
+                      updateDiceSettings(
+                        targetDice,
+                        { engravingDepthOverrideMm: Number(e.target.value) },
+                        'engravingDepthOverrideMm',
+                      )
+                    }
+                  />
+                  <input
+                    type="number"
+                    aria-label="Engraving depth override in mm"
+                    className="num-input"
+                    placeholder={depthOvSummary.mixed ? 'Mix' : 'Auto'}
+                    min={0.3}
+                    max={1.4}
+                    step={0.05}
+                    value={depthOvSummary.mixed ? '' : (depthOvSummary.value ?? '')}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      updateDiceSettings(
+                        targetDice,
+                        {
+                          engravingDepthOverrideMm:
+                            raw === ''
+                              ? null
+                              : Math.max(0.3, Math.min(1.4, Number(raw) || 0.75)),
+                        },
+                        'engravingDepthOverrideMm',
+                      );
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-compact"
+                  onClick={() =>
+                    updateDiceSettings(
+                      targetDice,
+                      { engravingDepthOverrideMm: null },
+                      'engravingDepthOverrideMm',
+                    )
+                  }
+                >
+                  Use Global Depth ({project.typography.engravingDepthMm.toFixed(2)} mm)
+                </button>
+              </div>
+
+              <div className="field-row">
+                <label htmlFor="die-emblem-override-select" className="field-label-line">
+                  <span>High-Face Emblem Override</span>
+                  <span className="field-value">
+                    {emblemBoolSummary.mixed
+                      ? 'Mixed'
+                      : emblemBoolSummary.value === null
+                        ? 'Global'
+                        : emblemBoolSummary.value
+                          ? 'On'
+                          : 'Off'}
+                  </span>
+                </label>
+                <select
+                  id="die-emblem-override-select"
+                  className="select-input"
+                  value={
+                    emblemBoolSummary.mixed
+                      ? '__mixed__'
+                      : emblemBoolSummary.value === null
+                        ? 'inherit'
+                        : emblemBoolSummary.value
+                          ? 'on'
+                          : 'off'
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '__mixed__') return;
+                    if (v === 'inherit') {
+                      updateDiceSettings(
+                        targetDice,
+                        { useHighFaceEmblemOverride: null, highFaceSvgIdOverride: null },
+                        'emblemOverride',
+                      );
+                    } else {
+                      updateDiceSettings(
+                        targetDice,
+                        { useHighFaceEmblemOverride: v === 'on' },
+                        'emblemOverride',
+                      );
+                    }
+                  }}
+                >
+                  {emblemBoolSummary.mixed && (
+                    <option value="__mixed__" disabled>
+                      Mixed emblem overrides…
+                    </option>
+                  )}
+                  <option value="inherit">
+                    Inherit Global ({project.typography.useHighFaceEmblem ? 'Enabled' : 'Disabled'})
+                  </option>
+                  <option value="on">Enable Emblem on High Face</option>
+                  <option value="off">Disable Emblem (Numbers Only)</option>
+                </select>
+              </div>
+
+              {selectedDice.some(
+                (id) =>
+                  project.dice[id]?.useHighFaceEmblemOverride ??
+                  project.typography.useHighFaceEmblem,
+              ) && (
+                <div className="field-row">
+                  <label htmlFor="die-emblem-svg-select" className="field-label-line">
+                    <span>High-Face Graphic Override</span>
+                  </label>
+                  <select
+                    id="die-emblem-svg-select"
+                    className="select-input"
+                    value={emblemSvgSummary.mixed ? '__mixed__' : (emblemSvgSummary.value ?? '')}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '__mixed__') return;
+                      updateDiceSettings(
+                        targetDice,
+                        {
+                          highFaceSvgIdOverride: v === '' ? null : v,
+                          ...(v !== '' ? { useHighFaceEmblemOverride: true } : {}),
+                        },
+                        'highFaceSvgOverride',
+                      );
+                    }}
+                  >
+                    {emblemSvgSummary.mixed && (
+                      <option value="__mixed__" disabled>
+                        Mixed SVG graphics…
+                      </option>
+                    )}
+                    <option value="">Inherit Global Graphic</option>
+                    {project.svgAssets.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="nudge-row">
+                <button
+                  type="button"
+                  className="btn btn-compact"
+                  onClick={() => resetDiceOverrides(targetDice, 'typography')}
+                >
+                  <RotateCcw size={12} aria-hidden="true" />
+                  Reset Font &amp; Depth Overrides
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-compact"
+                  aria-disabled={diceWithFaceOverrides === 0 ? 'true' : undefined}
+                  onClick={() => {
+                    if (diceWithFaceOverrides === 0) return;
+                    resetDiceOverrides(targetDice, 'faces');
+                  }}
+                >
+                  Clear Face Overrides ({diceWithFaceOverrides})
+                </button>
+              </div>
+            </section>
+
+            <section className="panel-section">
+              <h2 className="section-heading">
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <BoxSelect size={13} aria-hidden="true" />
                   Per-Face Override
                 </span>
                 <span style={{ color: 'var(--brand-amber-bright)' }}>
-                  {selectedFace ? `Face ${selectedFace.label}` : 'Click a face'}
+                  {isGroupMode
+                    ? 'Single-die only'
+                    : selectedFace
+                      ? `Face ${selectedFace.label}`
+                      : 'Click a face'}
                 </span>
               </h2>
 
@@ -725,7 +1860,7 @@ export function InspectorPanel() {
                       className="text-input"
                       value={faceOverride?.customText ?? selectedFace.label}
                       onChange={(e) =>
-                        updateFaceOverride(die.kind, selectedFaceId, {
+                        updateFaceOverride(die.id, selectedFaceId, {
                           customText: e.target.value,
                         })
                       }
@@ -741,7 +1876,7 @@ export function InspectorPanel() {
                       className="select-input"
                       value={faceOverride?.svgId ?? ''}
                       onChange={(e) =>
-                        updateFaceOverride(die.kind, selectedFaceId, {
+                        updateFaceOverride(die.id, selectedFaceId, {
                           svgId: e.target.value ? e.target.value : null,
                         })
                       }
@@ -764,7 +1899,7 @@ export function InspectorPanel() {
                         const file = e.target.files?.[0];
                         if (file) {
                           const id = await uploadSvgFile(file);
-                          updateFaceOverride(die.kind, selectedFaceId, { svgId: id });
+                          updateFaceOverride(die.id, selectedFaceId, { svgId: id });
                         }
                         e.target.value = '';
                       }}
@@ -794,7 +1929,7 @@ export function InspectorPanel() {
                       step={0.05}
                       value={faceOverride?.scaleMultiplier ?? 1}
                       onChange={(e) =>
-                        updateFaceOverride(die.kind, selectedFaceId, {
+                        updateFaceOverride(die.id, selectedFaceId, {
                           scaleMultiplier: Number(e.target.value),
                         })
                       }
@@ -816,7 +1951,7 @@ export function InspectorPanel() {
                       step={5}
                       value={faceOverride?.rotationDeg ?? 0}
                       onChange={(e) =>
-                        updateFaceOverride(die.kind, selectedFaceId, {
+                        updateFaceOverride(die.id, selectedFaceId, {
                           rotationDeg: Number(e.target.value),
                         })
                       }
@@ -837,7 +1972,7 @@ export function InspectorPanel() {
                         max={6}
                         value={faceOverride?.offsetXMm ?? 0}
                         onChange={(e) =>
-                          updateFaceOverride(die.kind, selectedFaceId, {
+                          updateFaceOverride(die.id, selectedFaceId, {
                             offsetXMm: Number(e.target.value) || 0,
                           })
                         }
@@ -856,7 +1991,7 @@ export function InspectorPanel() {
                         max={6}
                         value={faceOverride?.offsetYMm ?? 0}
                         onChange={(e) =>
-                          updateFaceOverride(die.kind, selectedFaceId, {
+                          updateFaceOverride(die.id, selectedFaceId, {
                             offsetYMm: Number(e.target.value) || 0,
                           })
                         }
@@ -867,15 +2002,16 @@ export function InspectorPanel() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => updateFaceOverride(die.kind, selectedFaceId, null)}
+                    onClick={() => updateFaceOverride(die.id, selectedFaceId, null)}
                   >
                     Reset Face {selectedFace.label} Override
                   </button>
                 </>
               ) : (
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '12px' }}>
-                  Click any face in the 3D viewport or use the top-left <strong>Faces</strong> bar
-                  to swap text, upload a custom SVG logo, or adjust X/Y/rotation on a specific face.
+                  Click or right-click any face in the 3D viewport (or use the top-left{' '}
+                  <strong>Faces</strong> bar) to swap text, upload a custom SVG logo, or adjust
+                  X/Y/rotation on a specific face.
                 </p>
               )}
             </section>
@@ -907,7 +2043,7 @@ export function InspectorPanel() {
                 Exact per-plane normal inset keeps shell thickness uniform on asymmetric dice
                 (Coins, Prisms, Crystal &amp; Arch D4s):
                 <code>
-                  Blank = Master - 2 × ({project.typography.engravingDepthMm.toFixed(2)} +{' '}
+                  Blank = Master - 2 × ({resolvedActiveTypo.engravingDepthMm.toFixed(2)} +{' '}
                   {(die.blankClearanceOverrideMm ?? project.blanks.clearanceMm).toFixed(2)}) mm
                 </code>
               </div>
@@ -948,25 +2084,33 @@ export function InspectorPanel() {
 
               <div className="field-row">
                 <label htmlFor="die-blank-override" className="field-label-line">
-                  <span>{DIE_DISPLAY_NAMES[die.kind]} Clearance Override</span>
-                  <span className="field-value">
-                    {die.blankClearanceOverrideMm === null
-                      ? 'Auto'
-                      : `${die.blankClearanceOverrideMm.toFixed(2)} mm`}
+                  <span>
+                    {isGroupMode
+                      ? `Group Clearance Override (${selectedCount} dice)`
+                      : `${activeDieLabel} Clearance Override`}
                   </span>
+                  {clearanceSummary.mixed ? (
+                    <span className="mixed-badge">Mixed</span>
+                  ) : (
+                    <span className="field-value">
+                      {clearanceSummary.value === null
+                        ? 'Auto'
+                        : `${clearanceSummary.value.toFixed(2)} mm`}
+                    </span>
+                  )}
                 </label>
                 <div className="variant-grid">
                   <input
                     id="die-blank-override"
                     type="number"
                     className="num-input"
-                    placeholder="Auto"
+                    placeholder={clearanceSummary.mixed ? 'Mixed' : 'Auto'}
                     step={0.01}
                     min={-0.2}
                     max={0.8}
-                    value={die.blankClearanceOverrideMm ?? ''}
+                    value={clearanceSummary.mixed ? '' : (clearanceSummary.value ?? '')}
                     onChange={(e) =>
-                      updateDieSettings(die.kind, {
+                      updateDiceSettings(targetDice, {
                         blankClearanceOverrideMm:
                           e.target.value === '' ? null : Number(e.target.value),
                       })
@@ -976,7 +2120,7 @@ export function InspectorPanel() {
                     type="button"
                     className="btn"
                     onClick={() =>
-                      updateDieSettings(die.kind, { blankClearanceOverrideMm: null })
+                      updateDiceSettings(targetDice, { blankClearanceOverrideMm: null })
                     }
                   >
                     Use Global
@@ -1152,6 +2296,17 @@ export function InspectorPanel() {
                 <Download size={14} aria-hidden="true" />
                 Export Complete Set…
               </button>
+
+              {isGroupMode && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openExportModalWithScope('selected')}
+                >
+                  <Download size={14} aria-hidden="true" />
+                  Export Selected ({selectedCount})…
+                </button>
+              )}
             </section>
           </div>
         </div>

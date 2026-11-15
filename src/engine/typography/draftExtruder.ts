@@ -112,10 +112,16 @@ function getHighFaceNumber(settings: DieSettings): string {
       return '3';
     case 'd4':
       return '4';
+    case 'd5':
+      return '5';
     case 'd6':
       return '6';
+    case 'd7':
+      return '7';
     case 'd8':
       return '8';
+    case 'd9':
+      return '9';
     case 'd10':
       return settings.d10Numbering === '1_10' ? '10' : '9';
     case 'd00':

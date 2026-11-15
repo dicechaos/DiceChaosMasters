@@ -3,9 +3,12 @@ import { DIE_DISPLAY_NAMES } from '../presets';
 
 export interface DieSpecRow {
   kind: DieKind;
+  dieLabel?: string;
   variantLabel: string;
   calipers: CaliperMetrics;
   hasBreach: boolean;
+  fontName?: string;
+  engravingDepthMm?: number;
 }
 
 export function generateCaliperSpecSheet(
@@ -33,15 +36,18 @@ export function generateCaliperSpecSheet(
     `\`\`\``,
     ``,
     `## Caliper Reference Table (mm)`,
-    `| Die | Shape Variant | Master F2F (CAD) | Master Height | Blank F2F (CAD) | Blank Height | Clearance | Slicer Master F2F | Slicer Blank F2F | Status |`,
-    `| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |`,
+    `| Die | Shape Variant | Font | Depth | Master F2F (CAD) | Master Height | Blank F2F (CAD) | Blank Height | Clearance | Slicer Master F2F | Slicer Blank F2F | Status |`,
+    `| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |`,
   ];
 
   for (const row of rows) {
     const c = row.calipers;
     const status = row.hasBreach ? 'WARNING: Check clearance' : 'Matched OK';
+    const fontLabel = row.fontName ?? fontDisplayName;
+    const depthLabel = (row.engravingDepthMm ?? project.typography.engravingDepthMm).toFixed(2);
+    const dieLabel = row.dieLabel ?? DIE_DISPLAY_NAMES[row.kind];
     lines.push(
-      `| ${DIE_DISPLAY_NAMES[row.kind]} | ${row.variantLabel} | ${c.masterFaceToFaceMm.toFixed(2)} | ${c.masterHeightMm.toFixed(2)} | ${c.blankFaceToFaceMm.toFixed(2)} | ${c.blankHeightMm.toFixed(2)} | ${c.effectiveClearanceMm.toFixed(2)} | ${c.masterSlicerF2FMm.toFixed(2)} | ${c.blankSlicerF2FMm.toFixed(2)} | ${status} |`,
+      `| ${dieLabel} | ${row.variantLabel} | ${fontLabel} | ${depthLabel} | ${c.masterFaceToFaceMm.toFixed(2)} | ${c.masterHeightMm.toFixed(2)} | ${c.blankFaceToFaceMm.toFixed(2)} | ${c.blankHeightMm.toFixed(2)} | ${c.effectiveClearanceMm.toFixed(2)} | ${c.masterSlicerF2FMm.toFixed(2)} | ${c.blankSlicerF2FMm.toFixed(2)} | ${status} |`,
     );
   }
 

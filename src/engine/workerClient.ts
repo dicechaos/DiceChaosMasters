@@ -1,6 +1,5 @@
 import type {
   DiceProjectState,
-  DieKind,
   ExportFileEntry,
   GeneratedDieResult,
 } from '../types/dice';
@@ -16,6 +15,19 @@ class DiceWorkerClient {
   private worker: Worker | null = null;
   private nextId = 1;
   private pending = new Map<number, PendingTask>();
+
+  /** Terminate the active worker and reject all in-flight tasks. */
+  cancelAll(reason = 'Export canceled.'): void {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    const err = new Error(reason);
+    for (const task of this.pending.values()) {
+      task.reject(err);
+    }
+    this.pending.clear();
+  }
 
   private ensureWorker(): Worker {
     if (!this.worker) {
@@ -57,7 +69,7 @@ class DiceWorkerClient {
   }
 
   generateDie(
-    kind: DieKind,
+    dieId: string,
     project: DiceProjectState,
     fontBytes: ArrayBuffer,
     includeBlank: boolean,
@@ -76,7 +88,7 @@ class DiceWorkerClient {
         {
           type: 'generateDie',
           requestId,
-          kind,
+          dieId,
           project,
           fontBytes: cloned,
           includeBlank,
@@ -89,10 +101,11 @@ class DiceWorkerClient {
 
   exportBatch(
     project: DiceProjectState,
-    fontBytes: ArrayBuffer,
-    fontDisplayName: string,
+    fontsByIdBytes: Record<string, ArrayBuffer>,
+    fontNamesById: Record<string, string>,
     onProgress?: (info: BatchProgressInfo) => void,
-  ): Promise<{ files: ExportFileEntry[]; specMarkdown: string; breachedDice: DieKind[] }> {
+    targetDice?: string[],
+  ): Promise<{ files: ExportFileEntry[]; specMarkdown: string; breachedDice: string[] }> {
     const worker = this.ensureWorker();
     const requestId = this.nextId++;
     return new Promise((resolve, reject) => {
@@ -101,16 +114,23 @@ class DiceWorkerClient {
         reject,
         onProgress,
       });
-      const cloned = fontBytes.slice(0);
+      const clonedMap: Record<string, ArrayBuffer> = {};
+      const transfers: ArrayBuffer[] = [];
+      for (const [fontId, buf] of Object.entries(fontsByIdBytes)) {
+        const cloned = buf.slice(0);
+        clonedMap[fontId] = cloned;
+        transfers.push(cloned);
+      }
       worker.postMessage(
         {
           type: 'exportBatch',
           requestId,
           project,
-          fontBytes: cloned,
-          fontDisplayName,
+          fontsByIdBytes: clonedMap,
+          fontNamesById,
+          targetDice,
         },
-        [cloned],
+        transfers,
       );
     });
   }

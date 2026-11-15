@@ -1,5 +1,5 @@
 import type { Font } from 'opentype.js';
-import type { DiceProjectState, DieKind, ExportFileEntry, GeneratedDieResult } from '../types/dice';
+import type { DiceProjectState, ExportFileEntry, GeneratedDieResult } from '../types/dice';
 import { buildBatchExportFiles } from './exporters/batchExporter';
 import { generateDieGeometry } from './generator';
 import { parseFontBuffer } from './typography/glyphBuilder';
@@ -8,7 +8,7 @@ type WorkerRequest =
   | {
       type: 'generateDie';
       requestId: number;
-      kind: DieKind;
+      dieId: string;
       project: DiceProjectState;
       fontBytes: ArrayBuffer;
       includeBlank: boolean;
@@ -18,8 +18,9 @@ type WorkerRequest =
       type: 'exportBatch';
       requestId: number;
       project: DiceProjectState;
-      fontBytes: ArrayBuffer;
-      fontDisplayName: string;
+      fontsByIdBytes: Record<string, ArrayBuffer>;
+      fontNamesById: Record<string, string>;
+      targetDice?: string[];
     };
 
 const fontCache = new WeakMap<ArrayBuffer, Font>();
@@ -36,10 +37,10 @@ function getParsedFont(bytes: ArrayBuffer): Font {
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const msg = event.data;
   try {
-    const font = getParsedFont(msg.fontBytes);
     if (msg.type === 'generateDie') {
+      const font = getParsedFont(msg.fontBytes);
       const result: GeneratedDieResult = await generateDieGeometry(
-        msg.kind,
+        msg.dieId,
         msg.project,
         font,
         {
@@ -50,10 +51,14 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       );
       self.postMessage({ type: 'generateDieResult', requestId: msg.requestId, result });
     } else if (msg.type === 'exportBatch') {
+      const fontMap: Record<string, Font> = {};
+      for (const [fontId, buf] of Object.entries(msg.fontsByIdBytes)) {
+        fontMap[fontId] = getParsedFont(buf);
+      }
       const batch = await buildBatchExportFiles(
         msg.project,
-        font,
-        msg.fontDisplayName,
+        fontMap,
+        msg.fontNamesById,
         (progress) => {
           self.postMessage({
             type: 'exportProgress',
@@ -61,6 +66,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             progress,
           });
         },
+        msg.targetDice,
       );
       self.postMessage({
         type: 'exportBatchResult',

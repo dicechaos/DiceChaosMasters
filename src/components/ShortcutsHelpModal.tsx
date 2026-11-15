@@ -5,6 +5,12 @@ import { useDiceStore } from '../store/useDiceStore';
 import type { ThemePreference } from '../types/dice';
 
 const SHORTCUTS: Array<{ label: string; keys: string }> = [
+  { label: 'Select all dice in set (group edit)', keys: 'Ctrl + A' },
+  { label: 'Toggle / range multi-select dice', keys: 'Ctrl / Shift + Click' },
+  { label: 'Duplicate active die', keys: 'Ctrl + D' },
+  { label: 'Die / Face editing context menu', keys: 'Right-Click or Shift + F10' },
+  { label: 'Remove selected die(s) (with confirm)', keys: 'Delete' },
+  { label: 'Return to single-die editing', keys: 'Esc' },
   { label: 'Undo parameter or edit', keys: 'Ctrl + Z' },
   { label: 'Redo edit', keys: 'Ctrl + Y' },
   { label: 'Save .dcproj project', keys: 'Ctrl + S' },

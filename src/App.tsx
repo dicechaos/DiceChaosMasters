@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConfirmRemoveModal } from './components/ConfirmRemoveModal';
 import { DieSelectorRail } from './components/DieSelectorRail';
 import { ExportModal } from './components/ExportModal';
 import { FeatureTourCard } from './components/FeatureTourCard';
 import { HeaderBar } from './components/HeaderBar';
 import { InspectorPanel } from './components/InspectorPanel';
 import { ShortcutsHelpModal } from './components/ShortcutsHelpModal';
+import { StudioContextMenu } from './components/StudioContextMenu';
 import { Viewport3D } from './components/Viewport3D';
+import { getDieInstanceLabel, getProjectDieOrder } from './engine/presets';
 import { confirmQuitClean, subscribeSaveAndQuit } from './platform/desktopBridge';
 import { useDiceStore } from './store/useDiceStore';
 
@@ -16,6 +19,9 @@ export function App() {
   const project = useDiceStore((s) => s.project);
   const isFocusMode = useDiceStore((s) => s.isFocusMode);
   const handleDroppedFiles = useDiceStore((s) => s.handleDroppedFiles);
+
+  const dieOrder = getProjectDieOrder(project);
+  const activeDieObj = project.dice[project.activeDie] ?? project.dice[dieOrder[0]];
 
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const dragCounterRef = useRef(0);
@@ -76,15 +82,46 @@ export function App() {
           state.setExportModalOpen(true);
           return;
         }
+        if (key === 'a' && !inEditable) {
+          event.preventDefault();
+          state.selectDiceGroup('all');
+          return;
+        }
+        if (key === 'd' && !inEditable) {
+          event.preventDefault();
+          state.duplicateDieInstance(state.project.activeDie);
+          return;
+        }
       }
 
-      if (event.key === 'Escape' && state.tourOpen) {
-        event.preventDefault();
-        state.closeTour();
-        return;
+      const anyModalOpen =
+        state.exportModalOpen ||
+        state.shortcutsModalOpen ||
+        Boolean(state.pendingRemoveDiceIds);
+
+      if (event.key === 'Escape') {
+        if (state.contextMenu) {
+          return;
+        }
+        if (state.tourOpen) {
+          event.preventDefault();
+          state.closeTour();
+          return;
+        }
+        if (!inEditable && !anyModalOpen && state.project.selectedDice.length > 1) {
+          event.preventDefault();
+          state.selectDiceGroup('single');
+          return;
+        }
       }
 
       if (inEditable || ctrlOrMeta || event.altKey) return;
+
+      if (event.key === 'Delete' && !anyModalOpen) {
+        event.preventDefault();
+        state.requestRemoveDice(state.project.selectedDice);
+        return;
+      }
 
       if (event.key === '1') {
         state.setViewportMode('single');
@@ -180,13 +217,18 @@ export function App() {
           <span>
             <kbd className="footer-kbd">?</kbd> Shortcuts
           </span>
-          <span>Free Open Maker Tool • {project.dice.d4.d4Variant.toUpperCase()}</span>
+          <span>
+            Free Open Maker Tool • {dieOrder.length} {dieOrder.length === 1 ? 'DIE' : 'DICE'}
+            {activeDieObj ? ` • ${getDieInstanceLabel(activeDieObj, project)}` : ''}
+          </span>
         </div>
       </footer>
 
       <FeatureTourCard />
       <ExportModal />
+      <ConfirmRemoveModal />
       <ShortcutsHelpModal />
+      <StudioContextMenu />
 
       {isDraggingFiles && (
         <div className="dropzone-overlay" role="status" aria-live="polite">

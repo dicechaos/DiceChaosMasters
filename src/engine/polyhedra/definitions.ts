@@ -1,7 +1,22 @@
-import type { DieSettings, HalfSpacePlane, Vec3 } from '../../types/dice';
-import { add3, normalize3, scale3 } from '../manifoldInstance';
+import type { D2Variant, DieSettings, HalfSpacePlane, OddDieVariant, Vec3 } from '../../types/dice';
+import { normalize3, scale3 } from '../manifoldInstance';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
+
+export function hasDieSecondaryDimension(d: DieSettings): boolean {
+  if (d.kind === 'd2' || d.kind === 'd3') return true;
+  if (d.kind === 'd4') {
+    return d.d4Variant === 'crystal' || d.d4Variant === 'arch' || d.d4Variant === 'pendulum';
+  }
+  if (d.kind === 'd5' || d.kind === 'd7' || d.kind === 'd9') {
+    return d.oddVariant === 'crystal' || d.oddVariant === 'prism';
+  }
+  if (d.kind === 'd6') return d.d6Variant === 'crystal';
+  if (d.kind === 'd8') return d.d8Variant === 'shard' || d.d8Variant === 'crystal';
+  if (d.kind === 'd10' || d.kind === 'd00') return d.d10Variant === 'crystal';
+  if (d.kind === 'd12') return d.d12Variant === 'crystal';
+  return false;
+}
 
 function getD4ClassicVertexFaces(): {
   normals: Vec3[];
@@ -29,21 +44,112 @@ function getD4ClassicVertexFaces(): {
   return { normals, vertexLabels, faceVertexIndices };
 }
 
-function buildD2CoinPlanes(sizeMm: number, thicknessMm: number): HalfSpacePlane[] {
-  const radius = Math.max(4, sizeMm * 0.5);
+function buildD2CoinPlanes(
+  variant: D2Variant,
+  sizeMm: number,
+  thicknessMm: number,
+): HalfSpacePlane[] {
+  const halfW = Math.max(4, sizeMm * 0.5);
   const halfT = Math.max(1.0, thicknessMm * 0.5);
   const planes: HalfSpacePlane[] = [];
-  const segments = 72;
 
-  for (let i = 0; i < segments; i++) {
-    const theta = (2 * Math.PI * i) / segments;
+  if (variant === 'oval') {
+    // Support function of ellipse with minor X radius a = halfW and major Y radius b = 1.28 * halfW.
+    // Normal-angle parameterization keeps adjacent rim normals strictly 5° apart (< 12° chamfer seam threshold).
+    const segments = 72;
+    const a = halfW;
+    const b = halfW * 1.28;
+    for (let i = 0; i < segments; i++) {
+      const phi = (2 * Math.PI * i) / segments;
+      const nx = Math.cos(phi);
+      const ny = Math.sin(phi);
+      planes.push({
+        id: `rim_${i}`,
+        normal: [nx, ny, 0],
+        distance: Math.hypot(a * nx, b * ny),
+        isNumbered: false,
+        role: 'cap',
+      });
+    }
+  } else if (variant === 'rounded_square') {
+    // Minkowski sum of square half-side s and circular corner radius r = 0.20 * sizeMm (6° steps along arcs).
+    const fullW = halfW * 2;
+    const r = 0.2 * fullW;
+    const s = 0.3 * fullW;
+    let idx = 0;
+    for (let q = 0; q < 4; q++) {
+      const base = q * (Math.PI / 2);
+      for (let k = 0; k < 15; k++) {
+        const alpha = (k * Math.PI) / 30;
+        const phi = base + alpha;
+        planes.push({
+          id: `rim_${idx++}`,
+          normal: [Math.cos(phi), Math.sin(phi), 0],
+          distance: s * (Math.cos(alpha) + Math.sin(alpha)) + r,
+          isNumbered: false,
+          role: 'cap',
+        });
+      }
+    }
+  } else if (variant === 'hexagon') {
+    for (let k = 0; k < 6; k++) {
+      const phi = (2 * Math.PI * k) / 6;
+      planes.push({
+        id: `rim_${k}`,
+        normal: [Math.cos(phi), Math.sin(phi), 0],
+        distance: halfW,
+        isNumbered: false,
+        role: 'cap',
+      });
+    }
+  } else if (variant === 'octagon') {
+    for (let k = 0; k < 8; k++) {
+      const phi = (2 * Math.PI * k) / 8;
+      planes.push({
+        id: `rim_${k}`,
+        normal: [Math.cos(phi), Math.sin(phi), 0],
+        distance: halfW,
+        isNumbered: false,
+        role: 'cap',
+      });
+    }
+  } else if (variant === 'shield') {
+    // Convex Gothic heater shield: flat top crest + opposing circular flanks meeting cleanly at base point.
+    const fullW = halfW * 2;
     planes.push({
-      id: `rim_${i}`,
-      normal: [Math.cos(theta), Math.sin(theta), 0],
-      distance: radius,
+      id: 'rim_top',
+      normal: [0, 1, 0],
+      distance: 0.52 * fullW,
       isNumbered: false,
       role: 'cap',
     });
+    let idx = 0;
+    for (const xSign of [1, -1]) {
+      for (let m = 0; m <= 10; m++) {
+        const alpha = (m * 6 * Math.PI) / 180;
+        const cosA = Math.cos(alpha);
+        const sinA = Math.sin(alpha);
+        planes.push({
+          id: `rim_flank_${idx++}`,
+          normal: [xSign * cosA, -sinA, 0],
+          distance: (1.0 - 0.5 * cosA - 0.26 * sinA) * fullW,
+          isNumbered: false,
+          role: 'cap',
+        });
+      }
+    }
+  } else {
+    const segments = 72;
+    for (let i = 0; i < segments; i++) {
+      const theta = (2 * Math.PI * i) / segments;
+      planes.push({
+        id: `rim_${i}`,
+        normal: [Math.cos(theta), Math.sin(theta), 0],
+        distance: halfW,
+        isNumbered: false,
+        role: 'cap',
+      });
+    }
   }
 
   planes.push({
@@ -435,16 +541,244 @@ function buildD4Planes(settings: DieSettings): HalfSpacePlane[] {
       isNumbered: true,
       role: 'primary',
       faceLabel: vertexLabels[idx],
-      upHint: upRef,
+      upHint: [-upRef[0], -upRef[1], -upRef[2]],
     });
   });
 
   return planes;
 }
 
-function buildD6Planes(sizeMm: number): HalfSpacePlane[] {
+/**
+ * Builds an even-sided pointed crystal barrel (6..18 belt faces around Z + pyramidal quartz tips)
+ * so opposite belt faces k and k + M are strictly parallel at exact caliper distance sizeMm.
+ */
+function buildCrystalBarrelPlanes(
+  beltLabels: string[],
+  sizeMm: number,
+  lengthMm: number,
+  upHintMode: 'axial' | 'horizontal_tangent' = 'axial',
+): HalfSpacePlane[] {
+  const twoM = beltLabels.length;
+  const halfW = Math.max(4, sizeMm * 0.5);
+  const halfL = Math.max(sizeMm * 0.85, lengthMm * 0.5);
+  const shoulderZ = halfL * 0.54;
+  const planes: HalfSpacePlane[] = [];
+
+  for (let k = 0; k < twoM; k++) {
+    const phi = (2 * Math.PI * k) / twoM;
+    const cx = Math.cos(phi);
+    const cy = Math.sin(phi);
+    const label = beltLabels[k];
+    const upHint: Vec3 = upHintMode === 'horizontal_tangent' ? [-cy, cx, 0] : [0, 0, 1];
+
+    planes.push({
+      id: `face_${k + 1}_${label}`,
+      normal: [cx, cy, 0],
+      distance: halfW,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: label,
+      upHint,
+    });
+
+    for (const zSign of [1, -1]) {
+      const dz = halfL - shoulderZ;
+      const tn = normalize3([dz * cx, dz * cy, zSign * halfW]);
+      const td = tn[0] * halfW * cx + tn[1] * halfW * cy + tn[2] * zSign * shoulderZ;
+      planes.push({
+        id: `cap_${zSign > 0 ? 'top' : 'bot'}_${k + 1}`,
+        normal: tn,
+        distance: td,
+        isNumbered: false,
+        role: 'cap',
+      });
+    }
+  }
+
+  return planes;
+}
+
+function buildBalancedOddCycle(sides: 5 | 7 | 9): number[] {
+  if (sides === 5) return [1, 4, 2, 5, 3];
+  if (sides === 7) return [1, 5, 3, 6, 2, 7, 4];
+  return [1, 6, 3, 8, 2, 7, 4, 9, 5];
+}
+
+function buildOddTrapezohedronPlanes(sides: 5 | 7 | 9, sizeMm: number): HalfSpacePlane[] {
+  const d = Math.max(4, sizeMm * 0.5);
+  const c = Math.max(0.85, 1.35 - 0.05 * sides);
+  const normLen = Math.hypot(1, c);
+  const xyComp = 1 / normLen;
+  const zComp = c / normLen;
+  const cycle = buildBalancedOddCycle(sides);
+  const halfShift = (sides - 1) / 2;
+
+  const upperLabels = new Array<string>(sides);
+  const lowerLabels = new Array<string>(sides);
+  for (let k = 0; k < sides; k++) {
+    const val = cycle[k];
+    const oppBotIdx = (k + halfShift) % sides;
+    upperLabels[k] = String(val);
+    lowerLabels[oppBotIdx] = String(sides + 1 - val);
+  }
+
+  const planes: HalfSpacePlane[] = [];
+  for (let k = 0; k < sides; k++) {
+    const phiTop = (2 * Math.PI * k) / sides;
+    planes.push({
+      id: `face_top_${upperLabels[k]}`,
+      normal: [xyComp * Math.cos(phiTop), xyComp * Math.sin(phiTop), zComp],
+      distance: d,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: upperLabels[k],
+      upHint: [0, 0, 1],
+    });
+
+    const phiBot = phiTop + Math.PI / sides;
+    planes.push({
+      id: `face_bot_${lowerLabels[k]}`,
+      normal: [xyComp * Math.cos(phiBot), xyComp * Math.sin(phiBot), -zComp],
+      distance: d,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: lowerLabels[k],
+      upHint: [0, 0, -1],
+    });
+  }
+
+  return planes;
+}
+
+function buildOddCrystalPlanes(
+  sides: 5 | 7 | 9,
+  sizeMm: number,
+  lengthMm: number,
+): HalfSpacePlane[] {
+  const cycle = buildBalancedOddCycle(sides);
+  const beltLabels: string[] = new Array(sides * 2);
+  for (let k = 0; k < sides; k++) {
+    const v = cycle[k];
+    beltLabels[k] = String(v);
+    beltLabels[k + sides] = String(sides + 1 - v);
+  }
+  return buildCrystalBarrelPlanes(beltLabels, sizeMm, lengthMm, 'axial');
+}
+
+function buildOddZocchiPrismPlanes(
+  sides: 5 | 7 | 9,
+  sizeMm: number,
+  lengthMm: number,
+): HalfSpacePlane[] {
+  const beltSides = sides - 2; // 3 for D5, 5 for D7, 7 for D9
+  const r = sizeMm / (1 + 1 / Math.cos(Math.PI / beltSides));
+  const halfH = Math.max(4.0, lengthMm * 0.5);
+  const planes: HalfSpacePlane[] = [];
+
+  planes.push({
+    id: 'face_1',
+    normal: [0, 0, -1],
+    distance: halfH,
+    isNumbered: true,
+    role: 'primary',
+    faceLabel: '1',
+    upHint: [-1, 0, 0],
+  });
+
+  for (let k = 0; k < beltSides; k++) {
+    const phi = (2 * Math.PI * k) / beltSides;
+    const label = String(k + 2);
+    planes.push({
+      id: `face_${label}`,
+      normal: [Math.cos(phi), Math.sin(phi), 0],
+      distance: r,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: label,
+      upHint: [0, 0, 1],
+    });
+  }
+
+  planes.push({
+    id: `face_${sides}`,
+    normal: [0, 0, 1],
+    distance: halfH,
+    isNumbered: true,
+    role: 'primary',
+    faceLabel: String(sides),
+    upHint: [-1, 0, 0],
+  });
+
+  return planes;
+}
+
+function buildOddDiePlanes(
+  sides: 5 | 7 | 9,
+  variant: OddDieVariant,
+  sizeMm: number,
+  secondarySizeMm: number,
+): HalfSpacePlane[] {
+  if (variant === 'crystal') {
+    return buildOddCrystalPlanes(sides, sizeMm, secondarySizeMm);
+  }
+  if (variant === 'prism') {
+    return buildOddZocchiPrismPlanes(sides, sizeMm, secondarySizeMm);
+  }
+  return buildOddTrapezohedronPlanes(sides, sizeMm);
+}
+
+function buildD6Planes(settings: DieSettings): HalfSpacePlane[] {
+  const sizeMm = settings.sizeMm;
+  const variant = settings.d6Variant;
+
+  if (variant === 'crystal') {
+    return buildCrystalBarrelPlanes(
+      ['1', '5', '3', '6', '2', '4'],
+      sizeMm,
+      settings.secondarySizeMm,
+      'axial',
+    );
+  }
+
+  if (variant === 'rhombic') {
+    // Trigonal trapezohedron (skewed diamond cube): 6 congruent rhombic faces at polar angle 63 deg.
+    const d = sizeMm * 0.5;
+    const theta = (63 * Math.PI) / 180;
+    const sinT = Math.sin(theta);
+    const cosT = Math.cos(theta);
+    const pairs: Array<{ posLabel: string; negLabel: string; phi: number }> = [
+      { posLabel: '6', negLabel: '1', phi: 0 },
+      { posLabel: '4', negLabel: '3', phi: (2 * Math.PI) / 3 },
+      { posLabel: '5', negLabel: '2', phi: (4 * Math.PI) / 3 },
+    ];
+    const planes: HalfSpacePlane[] = [];
+    for (const pair of pairs) {
+      const nPos: Vec3 = [sinT * Math.cos(pair.phi), sinT * Math.sin(pair.phi), cosT];
+      const nNeg: Vec3 = [-nPos[0], -nPos[1], -nPos[2]];
+      planes.push({
+        id: `face_${pair.posLabel}`,
+        normal: nPos,
+        distance: d,
+        isNumbered: true,
+        role: 'primary',
+        faceLabel: pair.posLabel,
+        upHint: [0, 0, 1],
+      });
+      planes.push({
+        id: `face_${pair.negLabel}`,
+        normal: nNeg,
+        distance: d,
+        isNumbered: true,
+        role: 'primary',
+        faceLabel: pair.negLabel,
+        upHint: [0, 0, 1],
+      });
+    }
+    return planes;
+  }
+
   const d = sizeMm * 0.5;
-  return [
+  const cubePlanes: HalfSpacePlane[] = [
     { id: 'face_1', normal: [0, 0, 1], distance: d, isNumbered: true, role: 'primary', faceLabel: '1', upHint: [0, 1, 0] },
     { id: 'face_6', normal: [0, 0, -1], distance: d, isNumbered: true, role: 'primary', faceLabel: '6', upHint: [0, 1, 0] },
     { id: 'face_2', normal: [0, 1, 0], distance: d, isNumbered: true, role: 'primary', faceLabel: '2', upHint: [0, 0, 1] },
@@ -452,41 +786,96 @@ function buildD6Planes(sizeMm: number): HalfSpacePlane[] {
     { id: 'face_3', normal: [1, 0, 0], distance: d, isNumbered: true, role: 'primary', faceLabel: '3', upHint: [0, 0, 1] },
     { id: 'face_4', normal: [-1, 0, 0], distance: d, isNumbered: true, role: 'primary', faceLabel: '4', upHint: [0, 0, 1] },
   ];
+
+  if (variant === 'truncated') {
+    const cornerDist = 0.7 * sizeMm;
+    let idx = 1;
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          cubePlanes.push({
+            id: `trunc_corner_${idx++}`,
+            normal: normalize3([sx, sy, sz]),
+            distance: cornerDist,
+            isNumbered: false,
+            role: 'cap',
+          });
+        }
+      }
+    }
+  }
+
+  return cubePlanes;
 }
 
-function buildD8Planes(sizeMm: number): HalfSpacePlane[] {
+function buildD8Planes(settings: DieSettings): HalfSpacePlane[] {
+  const sizeMm = settings.sizeMm;
+  const variant = settings.d8Variant;
+
+  if (variant === 'crystal') {
+    return buildCrystalBarrelPlanes(
+      ['1', '6', '4', '7', '8', '3', '5', '2'],
+      sizeMm,
+      settings.secondarySizeMm,
+      'axial',
+    );
+  }
+
   const d = sizeMm * 0.5;
-  const s = 1 / Math.sqrt(3);
-  // Opposite pairs sum to 9: (1,8), (2,7), (3,6), (4,5)
-  const specs: Array<{ label: string; n: Vec3; up: Vec3 }> = [
-    { label: '1', n: [s, s, s], up: [-1, -1, 2] },
-    { label: '8', n: [-s, -s, -s], up: [1, 1, 2] },
-    { label: '2', n: [-s, s, s], up: [1, -1, 2] },
-    { label: '7', n: [s, -s, -s], up: [-1, 1, 2] },
-    { label: '3', n: [-s, -s, s], up: [1, 1, 2] },
-    { label: '6', n: [s, s, -s], up: [-1, -1, 2] },
-    { label: '4', n: [s, -s, s], up: [-1, 1, 2] },
-    { label: '5', n: [-s, s, -s], up: [1, -1, 2] },
+  let xyComp = 1 / Math.sqrt(3);
+  let zComp = 1 / Math.sqrt(3);
+
+  if (variant === 'shard') {
+    const halfH = Math.max(sizeMm * 0.62, settings.secondarySizeMm * 0.5);
+    zComp = Math.min(0.75, Math.max(0.22, d / halfH));
+    xyComp = Math.sqrt((1 - zComp * zComp) * 0.5);
+  }
+
+  const specs: Array<{ label: string; sx: number; sy: number; sz: number }> = [
+    { label: '1', sx: 1, sy: 1, sz: 1 },
+    { label: '8', sx: -1, sy: -1, sz: -1 },
+    { label: '2', sx: -1, sy: 1, sz: 1 },
+    { label: '7', sx: 1, sy: -1, sz: -1 },
+    { label: '3', sx: -1, sy: -1, sz: 1 },
+    { label: '6', sx: 1, sy: 1, sz: -1 },
+    { label: '4', sx: 1, sy: -1, sz: 1 },
+    { label: '5', sx: -1, sy: 1, sz: -1 },
   ];
 
-  return specs.map((sp) => ({
-    id: `face_${sp.label}`,
-    normal: sp.n,
-    distance: d,
-    isNumbered: true,
-    role: 'primary',
-    faceLabel: sp.label,
-    upHint: sp.up,
-  }));
+  return specs.map((sp) => {
+    const n: Vec3 = [sp.sx * xyComp, sp.sy * xyComp, sp.sz * zComp];
+    const up: Vec3 = [0, 0, sp.sz];
+    return {
+      id: `face_${sp.label}`,
+      normal: n,
+      distance: d,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: sp.label,
+      upHint: up,
+    };
+  });
 }
 
-function buildD10Planes(
-  sizeMm: number,
-  isPercentile: boolean,
-  d10Mode: DieSettings['d10Numbering'],
-  d00Orientation: DieSettings['d00Orientation'],
-): HalfSpacePlane[] {
-  const d = sizeMm * 0.5;
+function buildD10Planes(settings: DieSettings, isPercentile: boolean): HalfSpacePlane[] {
+  const formatLabel = (digit: string): string => {
+    if (isPercentile) return `${digit}0`;
+    if (settings.d10Numbering === '1_10' && digit === '0') return '10';
+    return digit;
+  };
+
+  if (settings.d10Variant === 'crystal') {
+    // Opposite indices (k, k + 5) sum to 9: 0↔9, 7↔2, 4↔5, 1↔8, 6↔3.
+    const beltDigits = ['0', '7', '4', '1', '6', '9', '2', '5', '8', '3'];
+    return buildCrystalBarrelPlanes(
+      beltDigits.map(formatLabel),
+      settings.sizeMm,
+      settings.secondarySizeMm,
+      isPercentile && settings.d00Orientation === 'horizontal' ? 'horizontal_tangent' : 'axial',
+    );
+  }
+
+  const d = settings.sizeMm * 0.5;
   const alpha = (51 * Math.PI) / 180;
   const sinA = Math.sin(alpha);
   const cosA = Math.cos(alpha);
@@ -494,12 +883,6 @@ function buildD10Planes(
   // Lower face (k + 2) mod 5 is exact parallel opposite of upper face k -> opposite sums = 9
   const upperDigits = ['1', '7', '5', '3', '9'];
   const lowerDigits = ['6', '0', '8', '2', '4'];
-
-  const formatLabel = (digit: string): string => {
-    if (isPercentile) return `${digit}0`;
-    if (d10Mode === '1_10' && digit === '0') return '10';
-    return digit;
-  };
 
   const planes: HalfSpacePlane[] = [];
   for (let k = 0; k < 5; k++) {
@@ -513,12 +896,12 @@ function buildD10Planes(
       isNumbered: true,
       role: 'primary',
       faceLabel: labelTop,
-      upHint: isPercentile && d00Orientation === 'vertical' ? tangentPhiTop : [0, 0, 1],
+      upHint: isPercentile && settings.d00Orientation === 'vertical' ? tangentPhiTop : [0, 0, 1],
     });
 
     const phiBot = phiTop + Math.PI / 5;
     const labelBot = formatLabel(lowerDigits[k]);
-    const tangentPhiBot: Vec3 = [-Math.sin(phiBot), Math.cos(phiBot), 0];
+    const tangentPhiBot: Vec3 = [Math.sin(phiBot), -Math.cos(phiBot), 0];
     planes.push({
       id: `face_${labelBot}`,
       normal: [sinA * Math.cos(phiBot), sinA * Math.sin(phiBot), -cosA],
@@ -526,14 +909,65 @@ function buildD10Planes(
       isNumbered: true,
       role: 'primary',
       faceLabel: labelBot,
-      upHint: isPercentile && d00Orientation === 'vertical' ? tangentPhiBot : [0, 0, -1],
+      upHint: isPercentile && settings.d00Orientation === 'vertical' ? tangentPhiBot : [0, 0, -1],
     });
   }
   return planes;
 }
 
-function buildD12Planes(sizeMm: number): HalfSpacePlane[] {
+function buildRhombicD12Planes(sizeMm: number): HalfSpacePlane[] {
   const d = sizeMm * 0.5;
+  const s = Math.SQRT1_2;
+  // Catalan rhombic dodecahedron: 6 opposite pairs summing to 13 with 4-way octahedral vertex balance.
+  // Each upHint aligns with the rhombus's short diagonal so two-digit labels sit across the wide axis.
+  const pairs: Array<{ posLabel: string; negLabel: string; n: Vec3; up: Vec3 }> = [
+    { posLabel: '1', negLabel: '12', n: [s, s, 0], up: [0, 0, 1] },
+    { posLabel: '9', negLabel: '4', n: [s, -s, 0], up: [0, 0, 1] },
+    { posLabel: '11', negLabel: '2', n: [s, 0, s], up: [0, 1, 0] },
+    { posLabel: '6', negLabel: '7', n: [s, 0, -s], up: [0, 1, 0] },
+    { posLabel: '8', negLabel: '5', n: [0, s, s], up: [1, 0, 0] },
+    { posLabel: '10', negLabel: '3', n: [0, s, -s], up: [1, 0, 0] },
+  ];
+
+  const planes: HalfSpacePlane[] = [];
+  for (const p of pairs) {
+    planes.push({
+      id: `face_${p.posLabel}`,
+      normal: p.n,
+      distance: d,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: p.posLabel,
+      upHint: p.up,
+    });
+    planes.push({
+      id: `face_${p.negLabel}`,
+      normal: [-p.n[0], -p.n[1], -p.n[2]],
+      distance: d,
+      isNumbered: true,
+      role: 'primary',
+      faceLabel: p.negLabel,
+      upHint: p.up,
+    });
+  }
+  return planes;
+}
+
+function buildD12Planes(settings: DieSettings): HalfSpacePlane[] {
+  if (settings.d12Variant === 'rhombic') {
+    return buildRhombicD12Planes(settings.sizeMm);
+  }
+  if (settings.d12Variant === 'crystal') {
+    // Opposite indices (k, k + 6) sum to 13: 1↔12, 11↔2, 4↔9, 10↔3, 6↔7, 8↔5.
+    return buildCrystalBarrelPlanes(
+      ['1', '11', '4', '10', '6', '8', '12', '2', '9', '3', '7', '5'],
+      settings.sizeMm,
+      settings.secondarySizeMm,
+      'axial',
+    );
+  }
+
+  const d = settings.sizeMm * 0.5;
   // 6 opposite pairs summing to 13
   const pairs: Array<{ posLabel: string; negLabel: string; raw: Vec3 }> = [
     { posLabel: '12', negLabel: '1', raw: [0, 1, PHI] },
@@ -544,18 +978,23 @@ function buildD12Planes(sizeMm: number): HalfSpacePlane[] {
     { posLabel: '6', negLabel: '7', raw: [-1, PHI, 0] },
   ];
 
-  const allNormals = pairs.flatMap((p) => [normalize3(p.raw), normalize3([-p.raw[0], -p.raw[1], -p.raw[2]])]);
+  const allNormals = pairs.flatMap((p) => [
+    normalize3(p.raw),
+    normalize3([-p.raw[0], -p.raw[1], -p.raw[2]]),
+  ]);
   const pickNeighborUp = (n: Vec3): Vec3 => {
-    // Pick the adjacent dodecahedron face normal closest to +Z for crisp flat-edge alignment
+    // Point away from an adjacent dodecahedron face normal (toward the opposite pentagon apex)
+    // closest to +Z so every pentagon stands upright with its flat base edge horizontal at -Y.
     let best: Vec3 = [0, 0, 1];
     let bestScore = -Infinity;
     for (const cand of allNormals) {
       const dot = n[0] * cand[0] + n[1] * cand[1] + n[2] * cand[2];
       if (dot > 0.3 && dot < 0.9) {
-        const zScore = cand[2] - Math.abs(cand[0]) * 0.05;
+        const opp: Vec3 = [-cand[0], -cand[1], -cand[2]];
+        const zScore = opp[2] - Math.abs(opp[0]) * 0.05;
         if (zScore > bestScore) {
           bestScore = zScore;
-          best = cand;
+          best = opp;
         }
       }
     }
@@ -709,9 +1148,17 @@ function buildD20Planes(sizeMm: number, mode: DieSettings['d20Numbering']): Half
   }
 
   return normals.map((n, idx) => {
-    // Use direction toward an adjacent face's center (perpendicular to triangle base edge) as upHint
-    const nbIdx = neighbors[idx][0];
-    const upHint = add3(normals[nbIdx], scale3(n, 0.01));
+    // Point away from an adjacent face's normal (toward the opposite triangle apex)
+    // closest to world +Z so every triangle stands upright with its base edge horizontal at -Y.
+    let bestUp: Vec3 = [0, 0, 1];
+    let bestZ = -Infinity;
+    for (const nbIdx of neighbors[idx]) {
+      const opp = scale3(normals[nbIdx], -1);
+      if (opp[2] > bestZ) {
+        bestZ = opp[2];
+        bestUp = opp;
+      }
+    }
     return {
       id: `face_${labelsByFace[idx]}`,
       normal: n,
@@ -719,7 +1166,7 @@ function buildD20Planes(sizeMm: number, mode: DieSettings['d20Numbering']): Half
       isNumbered: true,
       role: 'primary',
       faceLabel: labelsByFace[idx],
-      upHint,
+      upHint: bestUp,
     };
   });
 }
@@ -730,21 +1177,27 @@ function buildD20Planes(sizeMm: number, mode: DieSettings['d20Numbering']): Half
 export function buildDieHalfSpaces(settings: DieSettings): HalfSpacePlane[] {
   switch (settings.kind) {
     case 'd2':
-      return buildD2CoinPlanes(settings.sizeMm, settings.secondarySizeMm);
+      return buildD2CoinPlanes(settings.d2Variant, settings.sizeMm, settings.secondarySizeMm);
     case 'd3':
       return buildD3Planes(settings.d3Variant, settings.sizeMm, settings.secondarySizeMm);
     case 'd4':
       return buildD4Planes(settings);
+    case 'd5':
+      return buildOddDiePlanes(5, settings.oddVariant, settings.sizeMm, settings.secondarySizeMm);
     case 'd6':
-      return buildD6Planes(settings.sizeMm);
+      return buildD6Planes(settings);
+    case 'd7':
+      return buildOddDiePlanes(7, settings.oddVariant, settings.sizeMm, settings.secondarySizeMm);
     case 'd8':
-      return buildD8Planes(settings.sizeMm);
+      return buildD8Planes(settings);
+    case 'd9':
+      return buildOddDiePlanes(9, settings.oddVariant, settings.sizeMm, settings.secondarySizeMm);
     case 'd10':
-      return buildD10Planes(settings.sizeMm, false, settings.d10Numbering, settings.d00Orientation);
+      return buildD10Planes(settings, false);
     case 'd00':
-      return buildD10Planes(settings.sizeMm, true, settings.d10Numbering, settings.d00Orientation);
+      return buildD10Planes(settings, true);
     case 'd12':
-      return buildD12Planes(settings.sizeMm);
+      return buildD12Planes(settings);
     case 'd20':
       return buildD20Planes(settings.sizeMm, settings.d20Numbering);
   }
@@ -757,21 +1210,66 @@ export function computeNominalCalipers(settings: DieSettings): {
   faceToFaceMm: number;
   heightMm: number;
 } {
+  const s = settings.sizeMm;
   switch (settings.kind) {
-    case 'd2':
-      return { faceToFaceMm: settings.secondarySizeMm, heightMm: settings.sizeMm };
+    case 'd2': {
+      let spanMm = s;
+      if (settings.d2Variant === 'oval') spanMm = s * 1.28;
+      else if (settings.d2Variant === 'hexagon') spanMm = s / Math.cos(Math.PI / 6);
+      else if (settings.d2Variant === 'shield') spanMm = s * 1.126;
+      return { faceToFaceMm: settings.secondarySizeMm, heightMm: spanMm };
+    }
     case 'd3':
-      return { faceToFaceMm: settings.sizeMm, heightMm: settings.secondarySizeMm };
+      return { faceToFaceMm: s, heightMm: settings.secondarySizeMm };
     case 'd4':
       if (
         settings.d4Variant === 'crystal' ||
         settings.d4Variant === 'arch' ||
         settings.d4Variant === 'pendulum'
       ) {
-        return { faceToFaceMm: settings.sizeMm, heightMm: settings.secondarySizeMm };
+        return { faceToFaceMm: s, heightMm: settings.secondarySizeMm };
       }
-      return { faceToFaceMm: settings.sizeMm, heightMm: settings.sizeMm };
-    default:
-      return { faceToFaceMm: settings.sizeMm, heightMm: settings.sizeMm };
+      return { faceToFaceMm: s, heightMm: s };
+    case 'd5':
+    case 'd7':
+    case 'd9':
+      if (settings.oddVariant === 'crystal') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.7, settings.secondarySizeMm) };
+      }
+      if (settings.oddVariant === 'prism') {
+        return { faceToFaceMm: s, heightMm: Math.max(8, settings.secondarySizeMm) };
+      }
+      return { faceToFaceMm: s, heightMm: s * 1.18 };
+    case 'd6':
+      if (settings.d6Variant === 'crystal') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.7, settings.secondarySizeMm) };
+      }
+      if (settings.d6Variant === 'rhombic') return { faceToFaceMm: s, heightMm: s * 1.48 };
+      if (settings.d6Variant === 'truncated') return { faceToFaceMm: s, heightMm: s * 1.4 };
+      return { faceToFaceMm: s, heightMm: s * Math.sqrt(3) };
+    case 'd8':
+      if (settings.d8Variant === 'crystal') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.7, settings.secondarySizeMm) };
+      }
+      if (settings.d8Variant === 'shard') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.24, settings.secondarySizeMm) };
+      }
+      return { faceToFaceMm: s, heightMm: s * Math.sqrt(3) };
+    case 'd10':
+    case 'd00':
+      if (settings.d10Variant === 'crystal') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.7, settings.secondarySizeMm) };
+      }
+      return { faceToFaceMm: s, heightMm: s * 1.22 };
+    case 'd12':
+      if (settings.d12Variant === 'crystal') {
+        return { faceToFaceMm: s, heightMm: Math.max(s * 1.7, settings.secondarySizeMm) };
+      }
+      if (settings.d12Variant === 'rhombic') {
+        return { faceToFaceMm: s, heightMm: s * Math.SQRT2 };
+      }
+      return { faceToFaceMm: s, heightMm: s * 1.258 };
+    case 'd20':
+      return { faceToFaceMm: s, heightMm: s * 1.26 };
   }
 }
