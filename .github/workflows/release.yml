@@ -64,6 +64,8 @@ jobs:
         run: npm ci
 
       - name: Run CAD test suite
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test
 
       - name: Typecheck & build Electron bundles

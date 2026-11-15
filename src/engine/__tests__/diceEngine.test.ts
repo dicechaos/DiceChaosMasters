@@ -271,6 +271,8 @@ describe('Dice Chaos Masters Geometry & CSG Engine', () => {
       const { positions, normals } = computeCreaseNormalsBuffer(res.masterMesh, 15);
       const triCount = Math.floor(positions.length / 9);
       let checkedTris = 0;
+      let minDot = Infinity;
+      let worstLabel = '';
 
       for (let t = 0; t < triCount; t++) {
         const b = t * 9;
@@ -317,12 +319,16 @@ describe('Dice Chaos Masters Geometry & CSG Engine', () => {
             normals[nb] * matchedFace.normal[0] +
             normals[nb + 1] * matchedFace.normal[1] +
             normals[nb + 2] * matchedFace.normal[2];
-          expect(dotN, `${kind} face ${matchedFace.id} tri ${t} v${k} normal dot`).toBeGreaterThan(
-            0.9999,
-          );
+          if (dotN < minDot) {
+            minDot = dotN;
+            if (dotN <= 0.9999) {
+              worstLabel = `${kind} face ${matchedFace.id} tri ${t} v${k} normal dot`;
+            }
+          }
         }
       }
 
+      expect(minDot, worstLabel || `${kind} primary face normal dot`).toBeGreaterThan(0.9999);
       expect(checkedTris, `${kind} checked primary face triangles`).toBeGreaterThan(planes.length);
     };
 
@@ -343,12 +349,14 @@ describe('Dice Chaos Masters Geometry & CSG Engine', () => {
       const stlView = new DataView(stlBytes.buffer, stlBytes.byteOffset, stlBytes.byteLength);
       const numTri = stlView.getUint32(80, true);
       expect(numTri).toBe(res.masterMesh.triangleCount);
+      let nanCount = 0;
       for (let t = 0; t < numTri; t++) {
         const off = 84 + t * 50;
         for (let f = 0; f < 12; f++) {
-          expect(Number.isNaN(stlView.getFloat32(off + f * 4, true))).toBe(false);
+          if (Number.isNaN(stlView.getFloat32(off + f * 4, true))) nanCount++;
         }
       }
+      expect(nanCount, `0-bevel ${kind} STL NaN floats`).toBe(0);
 
       if (kind === 'd2') d2Res = res;
       if (kind === 'd10') d10Res = res;
