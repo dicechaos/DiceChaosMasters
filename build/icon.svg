@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Dice Chaos Masters Icon">
+  <defs>
+    <linearGradient id="dcm-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#131f42" />
+      <stop offset="55%" stop-color="#090e1f" />
+      <stop offset="100%" stop-color="#040711" />
+    </linearGradient>
+    <radialGradient id="dcm-glow" cx="50%" cy="46%" r="48%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.34" />
+      <stop offset="52%" stop-color="#6366f1" stop-opacity="0.16" />
+      <stop offset="100%" stop-color="#090e1f" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="dcm-border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.75" />
+    </linearGradient>
+    <linearGradient id="dcm-center-face" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a6e" />
+      <stop offset="100%" stop-color="#0f1e42" />
+    </linearGradient>
+    <linearGradient id="dcm-neon-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="28%" stop-color="#a78bfa" />
+      <stop offset="52%" stop-color="#f472b6" />
+      <stop offset="76%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+    <linearGradient id="dcm-raft" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0891b2" />
+      <stop offset="50%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <clipPath id="dcm-squircle">
+      <rect x="24" y="24" width="464" height="464" rx="108" ry="108" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#dcm-squircle)">
+    <!-- Midnight Sapphire Squircle -->
+    <rect x="24" y="24" width="464" height="464" rx="108" ry="108" fill="url(#dcm-bg)" />
+    <rect x="24" y="24" width="464" height="464" rx="108" ry="108" fill="url(#dcm-glow)" />
+
+    <!-- Subtle CAD Grid -->
+    <g stroke="#38bdf8" stroke-opacity="0.11" stroke-width="1.5">
+      <line x1="96" y1="24" x2="96" y2="488" />
+      <line x1="176" y1="24" x2="176" y2="488" />
+      <line x1="256" y1="24" x2="256" y2="488" />
+      <line x1="336" y1="24" x2="336" y2="488" />
+      <line x1="416" y1="24" x2="416" y2="488" />
+      <line x1="24" y1="96" x2="488" y2="96" />
+      <line x1="24" y1="176" x2="488" y2="176" />
+      <line x1="24" y1="256" x2="488" y2="256" />
+      <line x1="24" y1="336" x2="488" y2="336" />
+      <line x1="24" y1="416" x2="488" y2="416" />
+    </g>
+
+    <!-- 4 Cyan Caliper Ticks -->
+    <g stroke="#22d3ee" stroke-width="5" stroke-linecap="round" opacity="0.85">
+      <path d="M 62 92 L 62 62 L 92 62" fill="none" />
+      <path d="M 420 62 L 450 62 L 450 92" fill="none" />
+      <path d="M 62 420 L 62 450 L 92 450" fill="none" />
+      <path d="M 420 450 L 450 450 L 450 420" fill="none" />
+    </g>
+
+    <!-- MSLA Support Raft & Struts -->
+    <g>
+      <line x1="256" y1="406" x2="256" y2="430" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" />
+      <line x1="210" y1="382" x2="196" y2="430" stroke="#38bdf8" stroke-width="3.5" stroke-opacity="0.7" stroke-linecap="round" />
+      <line x1="302" y1="382" x2="316" y2="430" stroke="#38bdf8" stroke-width="3.5" stroke-opacity="0.7" stroke-linecap="round" />
+      <polygon points="154,430 358,430 374,446 138,446" fill="url(#dcm-raft)" opacity="0.95" />
+    </g>
+
+    <!-- D20 Outer Facets (Faceted Low-Poly Shading) -->
+    <polygon points="256,78 398.03,160 256,160" fill="#172b59" />
+    <polygon points="398.03,160 332.21,292 256,160" fill="#12234a" />
+    <polygon points="398.03,160 398.03,324 332.21,292" fill="#0d1b3c" />
+    <polygon points="398.03,324 256,406 332.21,292" fill="#0b1633" />
+    <polygon points="256,406 179.79,292 332.21,292" fill="#101f44" />
+    <polygon points="256,406 113.97,324 179.79,292" fill="#0d1838" />
+    <polygon points="113.97,324 113.97,160 179.79,292" fill="#13254f" />
+    <polygon points="113.97,160 256,160 179.79,292" fill="#183063" />
+    <polygon points="113.97,160 256,78 256,160" fill="#1c3870" />
+
+    <!-- Center Main Triangle Face -->
+    <polygon points="256,160 332.21,292 179.79,292" fill="url(#dcm-center-face)" />
+
+    <!-- Nested Insert Blank Wireframe (Matched Inner Core above Facets) -->
+    <polygon
+      points="256,124 358.19,183 358.19,301 256,360 153.81,301 153.81,183"
+      fill="none"
+      stroke="#22d3ee"
+      stroke-width="2.4"
+      stroke-dasharray="9 6"
+      stroke-opacity="0.52"
+    />
+
+    <!-- Interior Polyhedral Edges (5-Color Neon Accents) -->
+    <g stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
+      <line x1="256" y1="78" x2="256" y2="160" stroke="#38bdf8" />
+      <line x1="398.03" y1="160" x2="256" y2="160" stroke="#a78bfa" />
+      <line x1="398.03" y1="160" x2="332.21" y2="292" stroke="#a78bfa" />
+      <line x1="398.03" y1="324" x2="332.21" y2="292" stroke="#f472b6" />
+      <line x1="256" y1="406" x2="332.21" y2="292" stroke="#f472b6" />
+      <line x1="256" y1="406" x2="179.79" y2="292" stroke="#fbbf24" />
+      <line x1="113.97" y1="324" x2="179.79" y2="292" stroke="#34d399" />
+      <line x1="113.97" y1="160" x2="179.79" y2="292" stroke="#34d399" />
+      <line x1="113.97" y1="160" x2="256" y2="160" stroke="#38bdf8" />
+    </g>
+
+    <!-- Center Crown Facet Frame -->
+    <polygon
+      points="256,160 332.21,292 179.79,292"
+      fill="none"
+      stroke="#fbbf24"
+      stroke-width="3.8"
+      stroke-linejoin="round"
+      stroke-opacity="0.92"
+    />
+
+    <!-- Outer Multi-Neon D20 Silhouette -->
+    <polygon
+      points="256,78 398.03,160 398.03,324 256,406 113.97,324 113.97,160"
+      fill="none"
+      stroke="url(#dcm-neon-rim)"
+      stroke-width="7.5"
+      stroke-linejoin="round"
+    />
+
+    <!-- Engraved Hero '20' Numeral -->
+    <text
+      x="256"
+      y="272"
+      text-anchor="middle"
+      font-family="Segoe UI, Inter, Arial Black, sans-serif"
+      font-weight="900"
+      font-size="68"
+      letter-spacing="-2"
+      fill="#091329"
+      transform="translate(0, 2)"
+    >20</text>
+    <text
+      x="256"
+      y="272"
+      text-anchor="middle"
+      font-family="Segoe UI, Inter, Arial Black, sans-serif"
+      font-weight="900"
+      font-size="68"
+      letter-spacing="-2"
+      fill="#f8fafc"
+    >20</text>
+  </g>
+
+  <!-- Outer Badge Border -->
+  <rect
+    x="26"
+    y="26"
+    width="460"
+    height="460"
+    rx="106"
+    ry="106"
+    fill="none"
+    stroke="url(#dcm-border)"
+    stroke-width="5"
+  />
+</svg>

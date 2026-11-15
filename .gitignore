@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build & Packaging Outputs (upload installers to GitHub Releases, not Git)
+dist/
+release/
+out/
+coverage/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.snap
+*.blockmap
+
+# Environment & Local Secrets
+.env
+.env.*
+!.env.example
+
+# Caches, Logs & OS Metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.eslintcache
+*.tsbuildinfo
+*.log*

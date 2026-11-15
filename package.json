@@ -1,0 +1,60 @@
+{
+  "name": "dice-chaos-masters",
+  "version": "1.0.0-beta.1",
+  "description": "Free parametric polyhedral dice master and matched insert blank STL/3MF generator by Dice Chaos (dicechaos.com)",
+  "main": "./out/main/index.js",
+  "author": "Gus (https://dicechaos.com)",
+  "homepage": "https://dicechaos.com",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dicechaos/DiceChaosMasters.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dicechaos/DiceChaosMasters/issues"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vitest.config.mts",
+    "start": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "build": "npm run typecheck && electron-vite build",
+    "icons": "electron ./scripts/generate-icons.cjs",
+    "test": "vitest run --config vitest.config.mts",
+    "test:watch": "vitest --config vitest.config.mts",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:mac": "npm run build && electron-builder --mac --publish never",
+    "build:linux": "npm run build && electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.511.0",
+    "manifold-3d": "^3.5.5",
+    "opentype.js": "^2.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.175.0",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "^0.175.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.4"
+  }
+}
