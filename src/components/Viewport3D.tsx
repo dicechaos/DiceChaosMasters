@@ -122,6 +122,23 @@ function findNearestFace(
   return best;
 }
 
+function sortFacesNaturally(faces: FacePreviewInfo[]): FacePreviewInfo[] {
+  const rank = (label: string): number | null => {
+    const trimmed = label.trim();
+    if (trimmed === '00') return 100;
+    if (/^\d+$/.test(trimmed)) return Number(trimmed);
+    return null;
+  };
+  return [...faces].sort((a, b) => {
+    const ra = rank(a.label);
+    const rb = rank(b.label);
+    if (ra !== null && rb !== null) return ra - rb;
+    if (ra !== null) return -1;
+    if (rb !== null) return 1;
+    return a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 function computeTrayGridCols(total: number): number {
   if (total <= 4) return Math.max(1, total);
   if (total <= 10) return 5;
@@ -163,7 +180,7 @@ function CameraController({
       const cols = computeTrayGridCols(total);
       const rows = Math.ceil(total / cols);
       const scale = Math.max(1, cols / 5, rows / 2.2);
-      camera.position.set(0, 62 * scale, 72 * scale);
+      camera.position.set(0, 138 * scale, 180 * scale);
     } else {
       camera.position.set(28, 24, 32);
     }
@@ -224,7 +241,21 @@ function DieSceneObject({
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (typeof document !== 'undefined' && document.body.style.cursor === 'pointer') {
+        document.body.style.cursor = '';
+      }
+    };
+  }, []);
+
   if (!masterGeo) return null;
+
+  const setPointerCursor = (active: boolean) => {
+    if (typeof document !== 'undefined') {
+      document.body.style.cursor = active ? 'pointer' : '';
+    }
+  };
 
   return (
     <group rotation={[-Math.PI / 2, 0, 0]}>
@@ -241,6 +272,11 @@ function DieSceneObject({
           )}
           <mesh
             geometry={masterGeo}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setPointerCursor(true);
+            }}
+            onPointerOut={() => setPointerCursor(false)}
             onClick={handleFaceClick}
             onContextMenu={handleFaceContextMenu}
           >
@@ -260,6 +296,11 @@ function DieSceneObject({
           geometry={masterGeo}
           castShadow
           receiveShadow
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setPointerCursor(true);
+          }}
+          onPointerOut={() => setPointerCursor(false)}
           onClick={handleFaceClick}
           onContextMenu={handleFaceContextMenu}
         >
@@ -371,6 +412,13 @@ function TrayDieMesh({
   onContextMenu: (clientX: number, clientY: number) => void;
 }) {
   const geo = useThreeGeometry(result.masterMesh);
+  useEffect(() => {
+    return () => {
+      if (typeof document !== 'undefined' && document.body.style.cursor === 'pointer') {
+        document.body.style.cursor = '';
+      }
+    };
+  }, []);
   if (!geo) return null;
 
   const highlighted = hasGroupSelection ? isSelected : isPrimary;
@@ -387,6 +435,13 @@ function TrayDieMesh({
         geometry={geo}
         castShadow
         receiveShadow
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (typeof document !== 'undefined') document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          if (typeof document !== 'undefined') document.body.style.cursor = '';
+        }}
         onClick={(e) => {
           e.stopPropagation();
           onClick({
@@ -462,6 +517,7 @@ export function Viewport3D() {
 
   const controlsRef = useRef<ComponentRef<typeof OrbitControls> | null>(null);
   const rightPointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const faceStripRef = useRef<HTMLDivElement | null>(null);
 
   const isStationaryRightClick = (clientX: number, clientY: number): boolean => {
     const down = rightPointerDownRef.current;
@@ -475,6 +531,7 @@ export function Viewport3D() {
     [project.selectedDice, project.activeDie, dieOrder],
   );
   const isGroupMode = selectedDice.length > 1;
+  const activeDieObj = project.dice[project.activeDie] ?? project.dice[dieOrder[0]];
   const selectedTrayResults = useMemo(
     () =>
       selectedDice
@@ -484,9 +541,43 @@ export function Viewport3D() {
   );
 
   const numberedFaces = useMemo(
-    () => (activeResult?.faces ?? []).filter((f) => f.isNumbered),
+    () => sortFacesNaturally((activeResult?.faces ?? []).filter((f) => f.isNumbered)),
     [activeResult],
   );
+
+  // Fallback for horizontal scroll-fade hints when scroll-driven animations are unsupported
+  useEffect(() => {
+    const scroller = faceStripRef.current;
+    if (!scroller || typeof CSS === 'undefined' || CSS.supports('animation-timeline', 'scroll()')) {
+      return;
+    }
+    const first = scroller.firstElementChild;
+    const last = scroller.lastElementChild;
+    if (!first || !last) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const { target, intersectionRatio } of entries) {
+          scroller.classList.toggle(
+            target === first ? 'more-start' : 'more-end',
+            intersectionRatio < 1,
+          );
+        }
+      },
+      { root: scroller, threshold: 1, rootMargin: '1px' },
+    );
+    observer.observe(first);
+    observer.observe(last);
+    return () => observer.disconnect();
+  }, [numberedFaces.length, isGroupMode, project.viewportMode]);
+
+  const handleFaceStripWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = faceStripRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  };
 
   const sceneMode =
     project.viewportMode === 'xray'
@@ -510,104 +601,71 @@ export function Viewport3D() {
     <main className="viewport-pane" aria-label="Interactive 3D Die Viewport">
       <div className="viewport-top-overlay">
         {isGroupMode ? (
-          <div className="face-strip group-tray-strip" role="group" aria-label="Selected Dice Group">
-            <span className="face-strip-label">Group ({selectedDice.length}):</span>
-            {selectedDice.map((id) => {
-              const d = project.dice[id];
-              const chipText = d ? getDieInstanceShortTag(d, project) : id.toUpperCase();
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`face-chip ${id === project.activeDie ? 'primary-chip' : ''}`}
-                  aria-pressed="true"
-                  title="Click to focus single die · Right-click for options · Ctrl/Cmd+Click to toggle"
-                  onClick={(e) =>
-                    selectDie(id, {
-                      toggle: e.ctrlKey || e.metaKey,
-                      range: e.shiftKey,
-                    })
-                  }
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    openDieContextMenu(id, e.clientX, e.clientY, false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                      e.preventDefault();
-                      const r = e.currentTarget.getBoundingClientRect();
-                      openDieContextMenu(id, Math.round(r.left), Math.round(r.bottom), true);
+          <div className="face-strip-wrap" role="group" aria-label="Selected Dice Group">
+            <span className="face-strip-label">Group ({selectedDice.length})</span>
+            <div
+              ref={faceStripRef}
+              className="face-strip group-tray-strip"
+              onWheel={handleFaceStripWheel}
+            >
+              {selectedDice.map((id) => {
+                const d = project.dice[id];
+                const chipText = d ? getDieInstanceShortTag(d, project) : id.toUpperCase();
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`face-chip ${id === project.activeDie ? 'primary-chip' : ''}`}
+                    aria-pressed="true"
+                    title="Click to focus single die · Right-click for options · Ctrl/Cmd+Click to toggle"
+                    onClick={(e) =>
+                      selectDie(id, {
+                        toggle: e.ctrlKey || e.metaKey,
+                        range: e.shiftKey,
+                      })
                     }
-                  }}
-                >
-                  {chipText}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              className="face-chip"
-              onClick={() => selectDiceGroup('single')}
-              title="Exit group selection (Esc)"
-            >
-              Single
-            </button>
-          </div>
-        ) : project.viewportMode !== 'tray' && numberedFaces.length > 0 ? (
-          <div className="face-strip" role="group" aria-label="Select Die Face for Overrides">
-            <span className="face-strip-label">Faces:</span>
-            <button
-              type="button"
-              className="face-chip"
-              aria-pressed={project.selectedFaceId === null}
-              title="Click to select all faces · Right-click for all-faces options"
-              onClick={() => setSelectedFaceId(null)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (activeResult) {
-                  openAllFacesContextMenu(
-                    activeResult.dieId,
-                    numberedFaces.map((f) => f.id),
-                    e.clientX,
-                    e.clientY,
-                    false,
-                  );
-                }
-              }}
-              onKeyDown={(e) => {
-                if (
-                  (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) &&
-                  activeResult
-                ) {
-                  e.preventDefault();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  openAllFacesContextMenu(
-                    activeResult.dieId,
-                    numberedFaces.map((f) => f.id),
-                    Math.round(r.left),
-                    Math.round(r.bottom),
-                    true,
-                  );
-                }
-              }}
-            >
-              All
-            </button>
-            {numberedFaces.map((f) => (
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openDieContextMenu(id, e.clientX, e.clientY, false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                        e.preventDefault();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        openDieContextMenu(id, Math.round(r.left), Math.round(r.bottom), true);
+                      }
+                    }}
+                  >
+                    {chipText}
+                  </button>
+                );
+              })}
               <button
-                key={f.id}
                 type="button"
                 className="face-chip"
-                aria-pressed={project.selectedFaceId === f.id}
-                title="Click to select face · Right-click for face options"
-                onClick={() => setSelectedFaceId(f.id)}
+                onClick={() => selectDiceGroup('single')}
+                title="Exit group selection (Esc)"
+              >
+                Single
+              </button>
+            </div>
+          </div>
+        ) : project.viewportMode !== 'tray' && numberedFaces.length > 0 ? (
+          <div className="face-strip-wrap" role="group" aria-label="Select Die Face for Overrides">
+            <span className="face-strip-label">Faces</span>
+            <div ref={faceStripRef} className="face-strip" onWheel={handleFaceStripWheel}>
+              <button
+                type="button"
+                className="face-chip face-chip-all"
+                aria-pressed={project.selectedFaceId === null}
+                title="Click to select all faces · Right-click for all-faces options"
+                onClick={() => setSelectedFaceId(null)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   if (activeResult) {
-                    openFaceContextMenu(
+                    openAllFacesContextMenu(
                       activeResult.dieId,
-                      f.id,
-                      f.label,
+                      numberedFaces.map((f) => f.id),
                       e.clientX,
                       e.clientY,
                       false,
@@ -621,10 +679,9 @@ export function Viewport3D() {
                   ) {
                     e.preventDefault();
                     const r = e.currentTarget.getBoundingClientRect();
-                    openFaceContextMenu(
+                    openAllFacesContextMenu(
                       activeResult.dieId,
-                      f.id,
-                      f.label,
+                      numberedFaces.map((f) => f.id),
                       Math.round(r.left),
                       Math.round(r.bottom),
                       true,
@@ -632,9 +689,54 @@ export function Viewport3D() {
                   }
                 }}
               >
-                {f.label}
+                All
               </button>
-            ))}
+              {numberedFaces.map((f) => {
+                const hasOverride = Boolean(activeDieObj?.faceOverrides[f.id]);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={`face-chip ${hasOverride ? 'has-override' : ''}`}
+                    aria-pressed={project.selectedFaceId === f.id}
+                    title={`Face ${f.label}${hasOverride ? ' (Edited)' : ''} · Click to select · Right-click for options`}
+                    onClick={() => setSelectedFaceId(f.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (activeResult) {
+                        openFaceContextMenu(
+                          activeResult.dieId,
+                          f.id,
+                          f.label,
+                          e.clientX,
+                          e.clientY,
+                          false,
+                        );
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (
+                        (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) &&
+                        activeResult
+                      ) {
+                        e.preventDefault();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        openFaceContextMenu(
+                          activeResult.dieId,
+                          f.id,
+                          f.label,
+                          Math.round(r.left),
+                          Math.round(r.bottom),
+                          true,
+                        );
+                      }
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div style={{ flex: 1 }} />
@@ -644,7 +746,7 @@ export function Viewport3D() {
           {isGenerating && (
             <div className="generating-pill" aria-live="polite">
               <Loader2 size={12} className="spin" aria-hidden="true" />
-              Building mesh…
+              <span className="quick-tool-label">Building…</span>
             </div>
           )}
 
@@ -659,6 +761,7 @@ export function Viewport3D() {
                   key={preset.id}
                   type="button"
                   className="resin-chip"
+                  aria-label={`Preview ${preset.label} resin`}
                   aria-pressed={resinPreset === preset.id}
                   title={`Preview ${preset.label} resin`}
                   onClick={() => setResinPreset(preset.id)}
@@ -668,7 +771,7 @@ export function Viewport3D() {
                     style={{ background: preset.swatch }}
                     aria-hidden="true"
                   />
-                  {preset.label}
+                  <span className="resin-label">{preset.label}</span>
                 </button>
               ))}
             </div>
@@ -677,17 +780,19 @@ export function Viewport3D() {
 
             <button
               type="button"
-              className="btn btn-compact"
+              className="btn btn-compact quick-tool-btn"
+              aria-label="Fit and reset camera"
               title="Fit & Reset Camera (F)"
               onClick={triggerCameraFit}
             >
               <Maximize2 size={12} aria-hidden="true" />
-              Fit
+              <span className="quick-tool-label">Fit</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-compact"
+              className="btn btn-compact quick-tool-btn"
+              aria-label="Toggle Focus Mode"
               aria-pressed={isFocusMode}
               title="Toggle Focus Mode (\)"
               onClick={toggleFocusMode}
@@ -697,7 +802,7 @@ export function Viewport3D() {
               ) : (
                 <Focus size={12} aria-hidden="true" />
               )}
-              Focus
+              <span className="quick-tool-label">Focus</span>
             </button>
           </div>
         </div>
@@ -855,11 +960,14 @@ export function Viewport3D() {
                       .join(', ')}
                   </span>
                 ) : (
-                  <span className="status-badge ok">
+                  <span
+                    className="status-badge ok"
+                    title="All selected shells clear · Ctrl/Shift+Click dice in tray to refine selection"
+                  >
                     <CheckCircle2 size={14} aria-hidden="true" />
                     {selectedTrayResults.length === selectedDice.length
-                      ? `All ${selectedDice.length} selected shells OK · Ctrl/Shift+Click dice in tray`
-                      : `Building ${selectedDice.length} selected dice…`}
+                      ? `All ${selectedDice.length} shells OK`
+                      : `Building ${selectedDice.length} dice…`}
                   </span>
                 )}
               </div>

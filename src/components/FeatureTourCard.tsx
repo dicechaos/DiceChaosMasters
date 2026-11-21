@@ -12,31 +12,31 @@ interface TourStepDef {
 
 const TOUR_STEPS: TourStepDef[] = [
   {
-    title: '1. Choose Polyhedron & D4/D3 Style',
-    body: 'Pick any die from the D2–D20 rail on the left. Under Shape, switch between 6 D4 profiles (Crystal, Arch, Pendulum, Truncated, Classic Vertex, Classic Base), D3 barrel styles, face-to-face calipers, or 0.00 mm hard-edge corners.',
+    title: '1. 12 Polyhedral Shapes & Set Templates',
+    body: 'Pick any die from the D2–D20 rail on the left (including D5, D7, D9, 6 D2 coin silhouettes, and Rhombic D12) or click Add Die / Sets to load game templates and twin Logo + Numbers pairs. Select multiple dice with Ctrl/Shift+Click for live group editing.',
     tab: 'shape',
     viewport: 'single',
   },
   {
-    title: '2. Fonts, SVGs & Per-Face Overrides',
-    body: 'Open Fonts & SVG to pick a bundled typeface, browse your installed OS TTF/OTF fonts, or drag-and-drop custom fonts and SVG emblems straight onto the window. Click any face pill above the viewport to tweak or replace individual numbers.',
+    title: '2. Fonts, SVGs & Right-Click Face Editing',
+    body: 'Open Fonts & SVG to pick a bundled typeface, browse installed OS TTF/OTF fonts, or drag-and-drop custom fonts and SVG emblems onto the window. Click or right-click any face in 3D or on the top Faces bar (including All) for instant text, SVG, rotation, and scale overrides.',
     tab: 'typography',
     viewport: 'single',
   },
   {
     title: '3. Matched Insert Blanks & X-Ray Check',
-    body: 'Switch to Insert X-Ray (3) to inspect the translucent outer shell around your matched inner blank core. The caliper formula guarantees BlankSize = MasterSize − 2 × (EngraveDepth + Clearance).',
+    body: 'Switch to Insert X-Ray (3) to inspect the translucent outer shell around your matched inner blank core. The caliper formula guarantees Blank = Master − 2 × (EngraveDepth + Clearance).',
     tab: 'blanks',
     viewport: 'xray',
   },
   {
     title: '4. Resin Shaders & Focus Mode',
-    body: 'Preview masters in Matte Grey, Arcane Sapphire, Cure Clear, or Obsidian resin right above the 3D scene. Press F to re-frame the camera or \\ (Backslash) for full-bleed Focus Mode.',
+    body: 'Preview masters in Master Grey, Arcane Sapphire, Cure Clear, or Obsidian resin right above the 3D scene. Press F to re-frame the camera or \\ (Backslash) for full-bleed Focus Mode.',
     viewport: 'single',
   },
   {
     title: '5. Supports & Print-Ready Bundle Export',
-    body: 'Check generated point-down fin & edge bumper supports (4), then click Export Set (Ctrl+E) to write watertight .stl meshes, multi-part .3mf files, matched blanks, and CALIPER_SPEC.md in one folder.',
+    body: 'Check generated point-down fin & edge bumper supports (4), then click Export Set (Ctrl+E) to write watertight .stl meshes, multi-part .3mf files, matched blanks, and Caliper_Specs.md in one bundle.',
     tab: 'export',
     viewport: 'supports',
   },

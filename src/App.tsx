@@ -205,19 +205,21 @@ export function App() {
           <span role="status">{statusMessage}</span>
         </div>
         <div className="footer-right">
-          <span>
-            <kbd className="footer-kbd">Ctrl+Z</kbd> Undo
+          <span className="footer-shortcuts">
+            <span>
+              <kbd className="footer-kbd">Ctrl+Z</kbd> Undo
+            </span>
+            <span>
+              <kbd className="footer-kbd">F</kbd> Fit
+            </span>
+            <span>
+              <kbd className="footer-kbd">\</kbd> Focus
+            </span>
+            <span>
+              <kbd className="footer-kbd">?</kbd> Shortcuts
+            </span>
           </span>
-          <span>
-            <kbd className="footer-kbd">F</kbd> Fit
-          </span>
-          <span>
-            <kbd className="footer-kbd">\</kbd> Focus
-          </span>
-          <span>
-            <kbd className="footer-kbd">?</kbd> Shortcuts
-          </span>
-          <span>
+          <span className="footer-summary">
             Free Open Maker Tool • {dieOrder.length} {dieOrder.length === 1 ? 'DIE' : 'DICE'}
             {activeDieObj ? ` • ${getDieInstanceLabel(activeDieObj, project)}` : ''}
           </span>

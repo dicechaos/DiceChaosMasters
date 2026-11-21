@@ -24,6 +24,7 @@ import {
   normalizeSelectedDice,
 } from '../engine/presets';
 import { useDiceStore } from '../store/useDiceStore';
+import { StudioSlider } from './StudioSlider';
 import type {
   D10Variant,
   D12Variant,
@@ -65,6 +66,12 @@ const TABS: Array<{ id: InspectorTab; label: string; icon: typeof Sliders }> = [
   { id: 'blanks', label: 'Blanks', icon: Layers },
   { id: 'export', label: 'Supports', icon: ShieldCheck },
 ];
+
+const PRESET_TILE_COPY: Record<SetPresetId, { title: string; sub: string }> = {
+  standard: { title: 'Standard', sub: '16 mm RPG' },
+  mini: { title: 'Mini Set', sub: '0.7× scale' },
+  chonk: { title: 'Chonk', sub: '1.5× scale' },
+};
 
 const D4_VARIANT_CARDS: Array<{ id: D4Variant; title: string; desc: string }> = [
   { id: 'crystal', title: 'Crystal Shard', desc: 'Elongated 4-sided obelisk' },
@@ -505,56 +512,60 @@ export function InspectorPanel() {
         >
           <div className="inspector-body">
             <section className="panel-section">
-              <h2 className="section-heading">
-                <span>Quick Game Set Templates</span>
-                <span className="field-value">{dieOrder.length} dice</span>
-              </h2>
-              <div className="control-pair" style={{ gridTemplateColumns: '1fr auto' }}>
-                <select
-                  id="quick-set-template-select"
-                  aria-label="Quick game set template"
-                  className="select-input"
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value as SetTemplateId)}
-                >
-                  {SET_TEMPLATE_LIST.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.label} ({tpl.shortLabel})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="btn btn-compact"
-                  onClick={() => applySetTemplate(selectedTemplateId)}
-                >
-                  Apply Set
-                </button>
-              </div>
-              <p className="field-hint" style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
-                {SET_TEMPLATE_LIST.find((t) => t.id === selectedTemplateId)?.description}
-              </p>
-            </section>
-
-            <section className="panel-section">
               <h2 className="section-heading">Global Set Scale</h2>
               <div className="preset-grid" role="group" aria-label="Set Sizing Presets">
                 {(Object.keys(SET_PRESETS) as SetPresetId[]).map((pid) => {
-                  const p = SET_PRESETS[pid];
+                  const copy = PRESET_TILE_COPY[pid];
                   return (
                     <button
                       key={pid}
                       type="button"
-                      className="choice-tile"
+                      className="choice-tile preset-tile"
                       aria-pressed={project.presetId === pid}
                       onClick={() => applyPreset(pid)}
                     >
-                      <span className="choice-tile-title">{p.label}</span>
+                      <span className="choice-tile-title">{copy.title}</span>
+                      <span className="choice-tile-desc">{copy.sub}</span>
                     </button>
                   );
                 })}
               </div>
             </section>
+
+            <details className="panel-section panel-accordion">
+              <summary className="accordion-summary">
+                <span className="accordion-title">Quick Game Set Templates</span>
+                <span className="field-value">{dieOrder.length} dice</span>
+              </summary>
+              <div className="accordion-body">
+                <div className="control-pair" style={{ gridTemplateColumns: '1fr auto' }}>
+                  <select
+                    id="quick-set-template-select"
+                    name="quick-set-template"
+                    aria-label="Quick game set template"
+                    className="select-input"
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value as SetTemplateId)}
+                  >
+                    {SET_TEMPLATE_LIST.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.label} ({tpl.shortLabel})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-compact"
+                    onClick={() => applySetTemplate(selectedTemplateId)}
+                  >
+                    Apply Set
+                  </button>
+                </div>
+                <p className="field-hint">
+                  {SET_TEMPLATE_LIST.find((t) => t.id === selectedTemplateId)?.description}
+                </p>
+              </div>
+            </details>
 
             <section className="panel-section">
               <h2 className="section-heading">
@@ -568,7 +579,7 @@ export function InspectorPanel() {
                     Mixed {sizeSummary.min.toFixed(1)}–{sizeSummary.max.toFixed(1)} mm
                   </span>
                 ) : (
-                  <span style={{ color: 'var(--brand-amber-bright)' }}>
+                  <span className="section-metric-amber">
                     {sizeSummary.value.toFixed(1)} mm
                   </span>
                 )}
@@ -588,7 +599,7 @@ export function InspectorPanel() {
                     value={die.customLabel ?? ''}
                     onChange={(e) => updateDieSettings(die.id, { customLabel: e.target.value })}
                   />
-                  <div className="nudge-row">
+                  <div className="die-action-row">
                     <button
                       type="button"
                       className="btn btn-compact"
@@ -607,17 +618,17 @@ export function InspectorPanel() {
                       title="Create twin Logo + Numbers Only pair"
                     >
                       <Sparkles size={12} aria-hidden="true" />
-                      Logo + Numbers Pair
+                      Logo + Pair
                     </button>
                     <button
                       type="button"
-                      className="btn btn-compact"
+                      className="btn btn-compact btn-subtle-danger"
                       disabled={dieOrder.length <= 1}
                       onClick={() => requestRemoveDice([die.id])}
                       title="Remove this die from set (Delete)"
+                      aria-label={`Remove ${activeDieLabel}`}
                     >
                       <Trash2 size={12} aria-hidden="true" />
-                      Remove
                     </button>
                   </div>
                 </div>
@@ -894,6 +905,7 @@ export function InspectorPanel() {
                   </label>
                   <select
                     id="d10-numbering-select"
+                    name="d10-numbering"
                     className="select-input"
                     value={d10Summary.mixed ? '__mixed__' : (d10Summary.value ?? '0_9')}
                     onChange={(e) => {
@@ -924,6 +936,7 @@ export function InspectorPanel() {
                   </label>
                   <select
                     id="d00-orient-select"
+                    name="d00-orientation"
                     className="select-input"
                     value={d00Summary.mixed ? '__mixed__' : (d00Summary.value ?? 'horizontal')}
                     onChange={(e) => {
@@ -954,6 +967,7 @@ export function InspectorPanel() {
                   </label>
                   <select
                     id="d20-layout-select"
+                    name="d20-layout"
                     className="select-input"
                     value={d20Summary.mixed ? '__mixed__' : (d20Summary.value ?? 'balanced')}
                     onChange={(e) => {
@@ -1013,36 +1027,26 @@ export function InspectorPanel() {
                         : `${sizeSummary.value.toFixed(1)} mm`}
                     </span>
                   </label>
-                  <div className="control-pair">
-                    <input
-                      id="group-rel-scale-range"
-                      type="range"
-                      min={50}
-                      max={150}
-                      step={1}
-                      value={relPct}
-                      onPointerDown={startRelativeBaseline}
-                      onChange={(e) => applyRelativeFactor(Number(e.target.value))}
-                      onPointerUp={commitRelativeBaseline}
-                      onPointerCancel={commitRelativeBaseline}
-                      onBlur={commitRelativeBaseline}
-                    />
-                    <input
-                      type="number"
-                      aria-label="Relative group scale percentage"
-                      className="num-input"
-                      min={50}
-                      max={150}
-                      step={1}
-                      value={relPct}
-                      onFocus={startRelativeBaseline}
-                      onChange={(e) => {
-                        const v = Math.max(50, Math.min(150, Number(e.target.value) || 100));
-                        applyRelativeFactor(v);
-                      }}
-                      onBlur={commitRelativeBaseline}
-                    />
-                  </div>
+                  <StudioSlider
+                    id="group-rel-scale-range"
+                    min={50}
+                    max={150}
+                    step={1}
+                    value={relPct}
+                    numberAriaLabel="Relative group scale percentage"
+                    ariaValueText={`${relPct}%`}
+                    onPointerDown={startRelativeBaseline}
+                    onChange={applyRelativeFactor}
+                    onPointerUp={commitRelativeBaseline}
+                    onPointerCancel={commitRelativeBaseline}
+                    onBlur={commitRelativeBaseline}
+                    onNumberFocus={startRelativeBaseline}
+                    onNumberBlur={commitRelativeBaseline}
+                    onNumberChange={(raw) => {
+                      const v = Math.max(50, Math.min(150, Number(raw) || 100));
+                      applyRelativeFactor(v);
+                    }}
+                  />
                   <div className="nudge-row" role="group" aria-label="Quick size nudges">
                     <button
                       type="button"
@@ -1100,34 +1104,23 @@ export function InspectorPanel() {
                       <span className="field-value">{sizeSummary.value.toFixed(1)} mm</span>
                     )}
                   </label>
-                  <div className="control-pair">
-                    <input
-                      id="die-size-range"
-                      type="range"
-                      min={8}
-                      max={45}
-                      step={0.5}
-                      value={sizeSummary.value}
-                      onChange={(e) =>
-                        updateDiceSettings(targetDice, { sizeMm: Number(e.target.value) })
-                      }
-                    />
-                    <input
-                      type="number"
-                      aria-label={`${isGroupMode ? 'Uniform size' : primaryDimLabel} in millimeters`}
-                      className="num-input"
-                      placeholder={sizeSummary.mixed ? 'Mix' : undefined}
-                      min={8}
-                      max={45}
-                      step={0.5}
-                      value={sizeSummary.mixed ? '' : sizeSummary.value}
-                      onChange={(e) =>
-                        updateDiceSettings(targetDice, {
-                          sizeMm: Math.max(8, Math.min(45, Number(e.target.value) || 8)),
-                        })
-                      }
-                    />
-                  </div>
+                  <StudioSlider
+                    id="die-size-range"
+                    min={8}
+                    max={45}
+                    step={0.5}
+                    value={sizeSummary.value}
+                    numberValue={sizeSummary.mixed ? '' : sizeSummary.value}
+                    placeholder={sizeSummary.mixed ? 'Mix' : undefined}
+                    numberAriaLabel={`${isGroupMode ? 'Uniform size' : primaryDimLabel} in millimeters`}
+                    ariaValueText={`${sizeSummary.value.toFixed(1)} mm`}
+                    onChange={(val) => updateDiceSettings(targetDice, { sizeMm: val })}
+                    onNumberChange={(raw) =>
+                      updateDiceSettings(targetDice, {
+                        sizeMm: Math.max(8, Math.min(45, Number(raw) || 8)),
+                      })
+                    }
+                  />
                 </div>
               )}
 
@@ -1155,40 +1148,31 @@ export function InspectorPanel() {
                       </span>
                     )}
                   </label>
-                  <div className="control-pair">
-                    <input
-                      id="die-sec-range"
-                      type="range"
-                      min={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 2.0 : 14}
-                      max={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 8.0 : 50}
-                      step={0.2}
-                      value={secSummary?.value ?? die.secondarySizeMm}
-                      onChange={(e) =>
-                        updateDiceSettings(
-                          secDice.length > 0 ? secDice : [die.id],
-                          { secondarySizeMm: Number(e.target.value) },
-                          'secondarySizeMm',
-                        )
-                      }
-                    />
-                    <input
-                      type="number"
-                      aria-label={`${secondaryDimLabel} in millimeters`}
-                      className="num-input"
-                      placeholder={secSummary?.mixed ? 'Mix' : undefined}
-                      min={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 2.0 : 14}
-                      max={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 8.0 : 50}
-                      step={0.2}
-                      value={secSummary?.mixed ? '' : (secSummary?.value ?? die.secondarySizeMm)}
-                      onChange={(e) =>
-                        updateDiceSettings(
-                          secDice.length > 0 ? secDice : [die.id],
-                          { secondarySizeMm: Number(e.target.value) || 3.6 },
-                          'secondarySizeMm',
-                        )
-                      }
-                    />
-                  </div>
+                  <StudioSlider
+                    id="die-sec-range"
+                    min={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 2.0 : 14}
+                    max={(secDice.length > 0 ? allSecD2 : die.kind === 'd2') ? 8.0 : 50}
+                    step={0.2}
+                    value={secSummary?.value ?? die.secondarySizeMm}
+                    numberValue={secSummary?.mixed ? '' : (secSummary?.value ?? die.secondarySizeMm)}
+                    placeholder={secSummary?.mixed ? 'Mix' : undefined}
+                    numberAriaLabel={`${secondaryDimLabel} in millimeters`}
+                    ariaValueText={`${(secSummary?.value ?? die.secondarySizeMm).toFixed(1)} mm`}
+                    onChange={(val) =>
+                      updateDiceSettings(
+                        secDice.length > 0 ? secDice : [die.id],
+                        { secondarySizeMm: val },
+                        'secondarySizeMm',
+                      )
+                    }
+                    onNumberChange={(raw) =>
+                      updateDiceSettings(
+                        secDice.length > 0 ? secDice : [die.id],
+                        { secondarySizeMm: Number(raw) || 3.6 },
+                        'secondarySizeMm',
+                      )
+                    }
+                  />
                 </div>
               )}
 
@@ -1207,35 +1191,28 @@ export function InspectorPanel() {
                     </span>
                   )}
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="edge-chamfer-range"
-                    type="range"
-                    min={0}
-                    max={1.0}
-                    step={0.05}
-                    value={chamferSummary.value}
-                    onChange={(e) =>
-                      updateDiceSettings(targetDice, { edgeChamferMm: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Edge chamfer in millimeters"
-                    className="num-input"
-                    placeholder={chamferSummary.mixed ? 'Mix' : undefined}
-                    min={0}
-                    max={1.0}
-                    step={0.05}
-                    value={chamferSummary.mixed ? '' : chamferSummary.value}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      updateDiceSettings(targetDice, {
-                        edgeChamferMm: Number.isNaN(v) ? 0 : Math.max(0, Math.min(1.0, v)),
-                      });
-                    }}
-                  />
-                </div>
+                <StudioSlider
+                  id="edge-chamfer-range"
+                  min={0}
+                  max={1.0}
+                  step={0.05}
+                  value={chamferSummary.value}
+                  numberValue={chamferSummary.mixed ? '' : chamferSummary.value}
+                  placeholder={chamferSummary.mixed ? 'Mix' : undefined}
+                  numberAriaLabel="Edge chamfer in millimeters"
+                  ariaValueText={
+                    chamferSummary.value <= 0.005
+                      ? '0.00 mm hard edge'
+                      : `${chamferSummary.value.toFixed(2)} mm`
+                  }
+                  onChange={(val) => updateDiceSettings(targetDice, { edgeChamferMm: val })}
+                  onNumberChange={(raw) => {
+                    const v = Number(raw);
+                    updateDiceSettings(targetDice, {
+                      edgeChamferMm: Number.isNaN(v) ? 0 : Math.max(0, Math.min(1.0, v)),
+                    });
+                  }}
+                />
               </div>
             </section>
           </div>
@@ -1257,6 +1234,7 @@ export function InspectorPanel() {
                 </label>
                 <select
                   id="font-family-select"
+                  name="active-font"
                   className="select-input"
                   value={project.typography.activeFontId}
                   onChange={(e) => updateTypography({ activeFontId: e.target.value })}
@@ -1315,32 +1293,21 @@ export function InspectorPanel() {
                   <span>Global Font Scale</span>
                   <span className="field-value">{project.typography.fontScalePct}%</span>
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="font-scale-range"
-                    type="range"
-                    min={30}
-                    max={90}
-                    step={1}
-                    value={project.typography.fontScalePct}
-                    onChange={(e) =>
-                      updateTypography({ fontScalePct: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Global font scale percentage"
-                    className="num-input"
-                    min={30}
-                    max={90}
-                    value={project.typography.fontScalePct}
-                    onChange={(e) =>
-                      updateTypography({
-                        fontScalePct: Math.max(30, Math.min(90, Number(e.target.value) || 58)),
-                      })
-                    }
-                  />
-                </div>
+                <StudioSlider
+                  id="font-scale-range"
+                  min={30}
+                  max={90}
+                  step={1}
+                  value={project.typography.fontScalePct}
+                  numberAriaLabel="Global font scale percentage"
+                  ariaValueText={`${project.typography.fontScalePct}%`}
+                  onChange={(val) => updateTypography({ fontScalePct: val })}
+                  onNumberChange={(raw) =>
+                    updateTypography({
+                      fontScalePct: Math.max(30, Math.min(90, Number(raw) || 58)),
+                    })
+                  }
+                />
               </div>
 
               <div className="field-row">
@@ -1358,36 +1325,23 @@ export function InspectorPanel() {
                     <span className="field-value">{fontMultSummary.value.toFixed(2)}×</span>
                   )}
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="die-font-mult"
-                    type="range"
-                    min={0.5}
-                    max={1.5}
-                    step={0.05}
-                    value={fontMultSummary.value}
-                    onChange={(e) =>
-                      updateDiceSettings(targetDice, {
-                        fontScaleMultiplier: Number(e.target.value),
-                      })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Per-die font multiplier"
-                    className="num-input"
-                    placeholder={fontMultSummary.mixed ? 'Mix' : undefined}
-                    min={0.5}
-                    max={1.5}
-                    step={0.05}
-                    value={fontMultSummary.mixed ? '' : fontMultSummary.value}
-                    onChange={(e) =>
-                      updateDiceSettings(targetDice, {
-                        fontScaleMultiplier: Number(e.target.value) || 1.0,
-                      })
-                    }
-                  />
-                </div>
+                <StudioSlider
+                  id="die-font-mult"
+                  min={0.5}
+                  max={1.5}
+                  step={0.05}
+                  value={fontMultSummary.value}
+                  numberValue={fontMultSummary.mixed ? '' : fontMultSummary.value}
+                  placeholder={fontMultSummary.mixed ? 'Mix' : undefined}
+                  numberAriaLabel="Per-die font multiplier"
+                  ariaValueText={`${fontMultSummary.value.toFixed(2)}×`}
+                  onChange={(val) => updateDiceSettings(targetDice, { fontScaleMultiplier: val })}
+                  onNumberChange={(raw) =>
+                    updateDiceSettings(targetDice, {
+                      fontScaleMultiplier: Number(raw) || 1.0,
+                    })
+                  }
+                />
               </div>
 
               <div className="field-row">
@@ -1397,33 +1351,21 @@ export function InspectorPanel() {
                     {project.typography.engravingDepthMm.toFixed(2)} mm
                   </span>
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="engrave-depth-range"
-                    type="range"
-                    min={0.3}
-                    max={1.4}
-                    step={0.05}
-                    value={project.typography.engravingDepthMm}
-                    onChange={(e) =>
-                      updateTypography({ engravingDepthMm: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Engraving depth in mm"
-                    className="num-input"
-                    min={0.3}
-                    max={1.4}
-                    step={0.05}
-                    value={project.typography.engravingDepthMm}
-                    onChange={(e) =>
-                      updateTypography({
-                        engravingDepthMm: Math.max(0.3, Math.min(1.4, Number(e.target.value) || 0.75)),
-                      })
-                    }
-                  />
-                </div>
+                <StudioSlider
+                  id="engrave-depth-range"
+                  min={0.3}
+                  max={1.4}
+                  step={0.05}
+                  value={project.typography.engravingDepthMm}
+                  numberAriaLabel="Engraving depth in mm"
+                  ariaValueText={`${project.typography.engravingDepthMm.toFixed(2)} mm`}
+                  onChange={(val) => updateTypography({ engravingDepthMm: val })}
+                  onNumberChange={(raw) =>
+                    updateTypography({
+                      engravingDepthMm: Math.max(0.3, Math.min(1.4, Number(raw) || 0.75)),
+                    })
+                  }
+                />
               </div>
 
               <div className="field-row">
@@ -1431,32 +1373,21 @@ export function InspectorPanel() {
                   <span>Anti-Tear Draft Angle</span>
                   <span className="field-value">{project.typography.draftAngleDeg}°</span>
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="draft-angle-range"
-                    type="range"
-                    min={0}
-                    max={25}
-                    step={1}
-                    value={project.typography.draftAngleDeg}
-                    onChange={(e) =>
-                      updateTypography({ draftAngleDeg: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Anti-tear draft angle in degrees"
-                    className="num-input"
-                    min={0}
-                    max={25}
-                    value={project.typography.draftAngleDeg}
-                    onChange={(e) =>
-                      updateTypography({
-                        draftAngleDeg: Math.max(0, Math.min(25, Number(e.target.value) || 0)),
-                      })
-                    }
-                  />
-                </div>
+                <StudioSlider
+                  id="draft-angle-range"
+                  min={0}
+                  max={25}
+                  step={1}
+                  value={project.typography.draftAngleDeg}
+                  numberAriaLabel="Anti-tear draft angle in degrees"
+                  ariaValueText={`${project.typography.draftAngleDeg} degrees`}
+                  onChange={(val) => updateTypography({ draftAngleDeg: val })}
+                  onNumberChange={(raw) =>
+                    updateTypography({
+                      draftAngleDeg: Math.max(0, Math.min(25, Number(raw) || 0)),
+                    })
+                  }
+                />
                 <div className="draft-diagram">
                   <svg width="46" height="24" viewBox="0 0 46 24" aria-hidden="true">
                     <path
@@ -1479,6 +1410,7 @@ export function InspectorPanel() {
                 </label>
                 <select
                   id="six-nine-select"
+                  name="six-nine-indicator"
                   className="select-input"
                   value={project.typography.sixNineIndicator}
                   onChange={(e) =>
@@ -1500,16 +1432,15 @@ export function InspectorPanel() {
                     {project.typography.twoDigitTrackingEm.toFixed(2)} em
                   </span>
                 </label>
-                <input
+                <StudioSlider
                   id="tracking-range"
-                  type="range"
                   min={-0.16}
                   max={0.12}
                   step={0.01}
                   value={project.typography.twoDigitTrackingEm}
-                  onChange={(e) =>
-                    updateTypography({ twoDigitTrackingEm: Number(e.target.value) })
-                  }
+                  numberAriaLabel="Two-digit kerning in em"
+                  ariaValueText={`${project.typography.twoDigitTrackingEm.toFixed(2)} em`}
+                  onChange={(val) => updateTypography({ twoDigitTrackingEm: val })}
                 />
               </div>
             </section>
@@ -1534,6 +1465,7 @@ export function InspectorPanel() {
                   </label>
                   <select
                     id="high-svg-select"
+                    name="high-face-svg"
                     className="select-input"
                     value={project.typography.highFaceSvgId}
                     onChange={(e) => updateTypography({ highFaceSvgId: e.target.value })}
@@ -1599,6 +1531,7 @@ export function InspectorPanel() {
                 </label>
                 <select
                   id="die-font-override-select"
+                  name="die-font-override"
                   className="select-input"
                   value={fontOvSummary.mixed ? '__mixed__' : (fontOvSummary.value ?? '')}
                   onChange={(e) => {
@@ -1658,46 +1591,36 @@ export function InspectorPanel() {
                     </span>
                   )}
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="die-depth-override-range"
-                    type="range"
-                    min={0.3}
-                    max={1.4}
-                    step={0.05}
-                    value={depthOvSummary.value ?? project.typography.engravingDepthMm}
-                    onChange={(e) =>
-                      updateDiceSettings(
-                        targetDice,
-                        { engravingDepthOverrideMm: Number(e.target.value) },
-                        'engravingDepthOverrideMm',
-                      )
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Engraving depth override in mm"
-                    className="num-input"
-                    placeholder={depthOvSummary.mixed ? 'Mix' : 'Auto'}
-                    min={0.3}
-                    max={1.4}
-                    step={0.05}
-                    value={depthOvSummary.mixed ? '' : (depthOvSummary.value ?? '')}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      updateDiceSettings(
-                        targetDice,
-                        {
-                          engravingDepthOverrideMm:
-                            raw === ''
-                              ? null
-                              : Math.max(0.3, Math.min(1.4, Number(raw) || 0.75)),
-                        },
-                        'engravingDepthOverrideMm',
-                      );
-                    }}
-                  />
-                </div>
+                <StudioSlider
+                  id="die-depth-override-range"
+                  min={0.3}
+                  max={1.4}
+                  step={0.05}
+                  value={depthOvSummary.value ?? project.typography.engravingDepthMm}
+                  numberValue={depthOvSummary.mixed ? '' : (depthOvSummary.value ?? '')}
+                  placeholder={depthOvSummary.mixed ? 'Mix' : 'Auto'}
+                  numberAriaLabel="Engraving depth override in mm"
+                  ariaValueText={`${(depthOvSummary.value ?? project.typography.engravingDepthMm).toFixed(2)} mm`}
+                  onChange={(val) =>
+                    updateDiceSettings(
+                      targetDice,
+                      { engravingDepthOverrideMm: val },
+                      'engravingDepthOverrideMm',
+                    )
+                  }
+                  onNumberChange={(raw) =>
+                    updateDiceSettings(
+                      targetDice,
+                      {
+                        engravingDepthOverrideMm:
+                          raw === ''
+                            ? null
+                            : Math.max(0.3, Math.min(1.4, Number(raw) || 0.75)),
+                      },
+                      'engravingDepthOverrideMm',
+                    )
+                  }
+                />
                 <button
                   type="button"
                   className="btn btn-compact"
@@ -1728,6 +1651,7 @@ export function InspectorPanel() {
                 </label>
                 <select
                   id="die-emblem-override-select"
+                  name="die-emblem-override"
                   className="select-input"
                   value={
                     emblemBoolSummary.mixed
@@ -1780,6 +1704,7 @@ export function InspectorPanel() {
                   </label>
                   <select
                     id="die-emblem-svg-select"
+                    name="die-emblem-svg-override"
                     className="select-input"
                     value={emblemSvgSummary.mixed ? '__mixed__' : (emblemSvgSummary.value ?? '')}
                     onChange={(e) => {
@@ -1839,7 +1764,7 @@ export function InspectorPanel() {
                   <BoxSelect size={13} aria-hidden="true" />
                   Per-Face Override
                 </span>
-                <span style={{ color: 'var(--brand-amber-bright)' }}>
+                <span className="section-metric-amber">
                   {isGroupMode
                     ? 'Single-die only'
                     : selectedFace
@@ -1873,6 +1798,7 @@ export function InspectorPanel() {
                     </label>
                     <select
                       id="face-svg-select"
+                      name="face-svg"
                       className="select-input"
                       value={faceOverride?.svgId ?? ''}
                       onChange={(e) =>
@@ -1921,17 +1847,16 @@ export function InspectorPanel() {
                         {(faceOverride?.scaleMultiplier ?? 1).toFixed(2)}×
                       </span>
                     </label>
-                    <input
+                    <StudioSlider
                       id="face-scale-range"
-                      type="range"
                       min={0.4}
                       max={1.8}
                       step={0.05}
                       value={faceOverride?.scaleMultiplier ?? 1}
-                      onChange={(e) =>
-                        updateFaceOverride(die.id, selectedFaceId, {
-                          scaleMultiplier: Number(e.target.value),
-                        })
+                      numberAriaLabel="Face scale multiplier"
+                      ariaValueText={`${(faceOverride?.scaleMultiplier ?? 1).toFixed(2)}×`}
+                      onChange={(val) =>
+                        updateFaceOverride(die.id, selectedFaceId, { scaleMultiplier: val })
                       }
                     />
                   </div>
@@ -1943,17 +1868,16 @@ export function InspectorPanel() {
                         {faceOverride?.rotationDeg ?? 0}°
                       </span>
                     </label>
-                    <input
+                    <StudioSlider
                       id="face-rot-range"
-                      type="range"
                       min={-180}
                       max={180}
                       step={5}
                       value={faceOverride?.rotationDeg ?? 0}
-                      onChange={(e) =>
-                        updateFaceOverride(die.id, selectedFaceId, {
-                          rotationDeg: Number(e.target.value),
-                        })
+                      numberAriaLabel="Face rotation in degrees"
+                      ariaValueText={`${faceOverride?.rotationDeg ?? 0} degrees`}
+                      onChange={(val) =>
+                        updateFaceOverride(die.id, selectedFaceId, { rotationDeg: val })
                       }
                     />
                   </div>
@@ -2040,10 +1964,12 @@ export function InspectorPanel() {
               </label>
 
               <div className="formula-card">
-                Exact per-plane normal inset keeps shell thickness uniform on asymmetric dice
-                (Coins, Prisms, Crystal &amp; Arch D4s):
-                <code>
-                  Blank = Master - 2 × ({resolvedActiveTypo.engravingDepthMm.toFixed(2)} +{' '}
+                <p className="formula-desc">
+                  Exact per-plane normal inset keeps shell thickness uniform on asymmetric dice
+                  (Coins, Prisms, Crystal &amp; Arch D4s):
+                </p>
+                <code className="formula-eq">
+                  Blank = Master − 2 × ({resolvedActiveTypo.engravingDepthMm.toFixed(2)} +{' '}
                   {(die.blankClearanceOverrideMm ?? project.blanks.clearanceMm).toFixed(2)}) mm
                 </code>
               </div>
@@ -2053,33 +1979,23 @@ export function InspectorPanel() {
                   <span>Global Resin Clearance (Per Side)</span>
                   <span className="field-value">{project.blanks.clearanceMm.toFixed(2)} mm</span>
                 </label>
-                <div className="control-pair">
-                  <input
-                    id="blank-clearance-range"
-                    type="range"
-                    min={0}
-                    max={0.4}
-                    step={0.01}
-                    value={project.blanks.clearanceMm}
-                    onChange={(e) =>
-                      updateBlanks({ clearanceMm: Number(e.target.value) })
-                    }
-                  />
-                  <input
-                    type="number"
-                    aria-label="Global blank clearance in mm"
-                    className="num-input"
-                    min={0}
-                    max={0.4}
-                    step={0.01}
-                    value={project.blanks.clearanceMm}
-                    onChange={(e) =>
-                      updateBlanks({
-                        clearanceMm: Math.max(-0.5, Math.min(0.6, Number(e.target.value) || 0)),
-                      })
-                    }
-                  />
-                </div>
+                <StudioSlider
+                  id="blank-clearance-range"
+                  min={0}
+                  max={0.4}
+                  step={0.01}
+                  numberMin={-0.5}
+                  numberMax={0.6}
+                  value={project.blanks.clearanceMm}
+                  numberAriaLabel="Global blank clearance in mm"
+                  ariaValueText={`${project.blanks.clearanceMm.toFixed(2)} mm`}
+                  onChange={(val) => updateBlanks({ clearanceMm: val })}
+                  onNumberChange={(raw) =>
+                    updateBlanks({
+                      clearanceMm: Math.max(-0.5, Math.min(0.6, Number(raw) || 0)),
+                    })
+                  }
+                />
               </div>
 
               <div className="field-row">
@@ -2133,16 +2049,15 @@ export function InspectorPanel() {
                   <span>Blank Bubble-Relief Edge Bevel</span>
                   <span className="field-value">{project.blanks.bubbleBevelMm.toFixed(2)} mm</span>
                 </label>
-                <input
+                <StudioSlider
                   id="blank-bevel-range"
-                  type="range"
                   min={0}
                   max={0.5}
                   step={0.05}
                   value={project.blanks.bubbleBevelMm}
-                  onChange={(e) =>
-                    updateBlanks({ bubbleBevelMm: Number(e.target.value) })
-                  }
+                  numberAriaLabel="Blank bubble-relief edge bevel in mm"
+                  ariaValueText={`${project.blanks.bubbleBevelMm.toFixed(2)} mm`}
+                  onChange={(val) => updateBlanks({ bubbleBevelMm: val })}
                 />
               </div>
 
@@ -2193,16 +2108,15 @@ export function InspectorPanel() {
                     {project.supports.bumperContactWidthMm.toFixed(2)} mm
                   </span>
                 </label>
-                <input
+                <StudioSlider
                   id="bumper-width-range"
-                  type="range"
                   min={0.14}
                   max={0.5}
                   step={0.02}
                   value={project.supports.bumperContactWidthMm}
-                  onChange={(e) =>
-                    updateSupports({ bumperContactWidthMm: Number(e.target.value) })
-                  }
+                  numberAriaLabel="Bumper contact width in mm"
+                  ariaValueText={`${project.supports.bumperContactWidthMm.toFixed(2)} mm`}
+                  onChange={(val) => updateSupports({ bumperContactWidthMm: val })}
                 />
               </div>
 
@@ -2211,16 +2125,15 @@ export function InspectorPanel() {
                   <span>Build-Plate Lift Height</span>
                   <span className="field-value">{project.supports.liftHeightMm.toFixed(1)} mm</span>
                 </label>
-                <input
+                <StudioSlider
                   id="raft-lift-range"
-                  type="range"
                   min={2.0}
                   max={8.0}
                   step={0.5}
                   value={project.supports.liftHeightMm}
-                  onChange={(e) =>
-                    updateSupports({ liftHeightMm: Number(e.target.value) })
-                  }
+                  numberAriaLabel="Build-plate lift height in mm"
+                  ariaValueText={`${project.supports.liftHeightMm.toFixed(1)} mm`}
+                  onChange={(val) => updateSupports({ liftHeightMm: val })}
                 />
               </div>
 
@@ -2273,18 +2186,15 @@ export function InspectorPanel() {
                     +{project.exportConfig.shrinkageCompensationPct.toFixed(2)}%
                   </span>
                 </label>
-                <input
+                <StudioSlider
                   id="shrinkage-range"
-                  type="range"
                   min={0}
                   max={3.0}
                   step={0.1}
                   value={project.exportConfig.shrinkageCompensationPct}
-                  onChange={(e) =>
-                    updateExportConfig({
-                      shrinkageCompensationPct: Number(e.target.value),
-                    })
-                  }
+                  numberAriaLabel="Resin shrinkage compensation percentage"
+                  ariaValueText={`plus ${project.exportConfig.shrinkageCompensationPct.toFixed(2)} percent`}
+                  onChange={(val) => updateExportConfig({ shrinkageCompensationPct: val })}
                 />
               </div>
 
@@ -2296,17 +2206,6 @@ export function InspectorPanel() {
                 <Download size={14} aria-hidden="true" />
                 Export Complete Set…
               </button>
-
-              {isGroupMode && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => openExportModalWithScope('selected')}
-                >
-                  <Download size={14} aria-hidden="true" />
-                  Export Selected ({selectedCount})…
-                </button>
-              )}
             </section>
           </div>
         </div>

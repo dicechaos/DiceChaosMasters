@@ -121,10 +121,15 @@ export function DieSelectorRail() {
     <aside className="die-rail" aria-label="Dice Set Selector">
       <div className="rail-header">
         <h2 className="rail-heading">Polyhedral Set</h2>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-          {selectedCount > 1
-            ? `${selectedCount} selected`
-            : `${enabledCount}/${dieOrder.length} active`}
+        <span
+          className="rail-count-pill"
+          title={
+            selectedCount > 1
+              ? `${selectedCount} dice selected for group editing`
+              : `${enabledCount} of ${dieOrder.length} dice enabled for export`
+          }
+        >
+          {selectedCount > 1 ? `${selectedCount} sel` : `${enabledCount}/${dieOrder.length}`}
         </span>
       </div>
 
@@ -335,24 +340,26 @@ export function DieSelectorRail() {
                   }
                 }}
               >
-                <span>
-                  <span className="die-name">
-                    {displayName}
-                    {selectedCount > 1 && isAnchor && (
-                      <span className="die-tag anchor-tag">Primary</span>
-                    )}
-                    {isCustom && (
-                      <span
-                        className="die-tag custom-tag"
-                        title="Has custom per-die overrides"
-                      >
-                        Custom
-                      </span>
-                    )}
-                  </span>
-                  <span className="die-sub">{variantSubtitle}</span>
+                <span className="die-card-top">
+                  <span className="die-name">{displayName}</span>
+                  <span className="die-mm-pill">{die.sizeMm.toFixed(1)} mm</span>
                 </span>
-                <span className="die-mm-pill">{die.sizeMm.toFixed(1)} mm</span>
+                <span className="die-card-meta">
+                  <span className="die-sub" title={variantSubtitle}>
+                    {variantSubtitle}
+                  </span>
+                  {selectedCount > 1 && isAnchor && (
+                    <span className="die-tag anchor-tag">Primary</span>
+                  )}
+                  {isCustom && (
+                    <span
+                      className="die-tag custom-tag"
+                      title="Has custom per-die overrides"
+                    >
+                      Custom
+                    </span>
+                  )}
+                </span>
               </button>
 
               <div className="die-card-actions">
@@ -363,7 +370,7 @@ export function DieSelectorRail() {
                   aria-label={`Duplicate ${displayName}`}
                   onClick={() => duplicateDieInstance(dieId)}
                 >
-                  <Copy size={11} aria-hidden="true" />
+                  <Copy size={12} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -373,7 +380,7 @@ export function DieSelectorRail() {
                   aria-label={`Remove ${displayName}`}
                   onClick={() => requestRemoveDice([dieId])}
                 >
-                  <Trash2 size={11} aria-hidden="true" />
+                  <Trash2 size={12} aria-hidden="true" />
                 </button>
               </div>
             </div>
