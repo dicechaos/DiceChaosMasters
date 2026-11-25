@@ -14,6 +14,7 @@
   <a href="https://dicechaos.com"><img src="https://img.shields.io/badge/website-dicechaos.com-4f46e5?style=flat-square" alt="dicechaos.com" /></a>
   <a href="https://github.com/dicechaos/DiceChaosConnections"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Connections-0ea5e9?style=flat-square" alt="Dice Chaos Connections" /></a>
   <a href="https://github.com/dicechaos/DiceChaosDisplay"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Display-10b981?style=flat-square" alt="Dice Chaos Display" /></a>
+  <a href="https://github.com/dicechaos/DiceChaosMaps"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Maps-d97706?style=flat-square" alt="Dice Chaos Maps" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/dicechaos/DiceChaosMasters?style=flat-square" alt="MIT License" /></a>
 </p>
 
@@ -21,7 +22,7 @@
 
 **Dice Chaos Masters** is a free, local-first parametric CAD studio built by **[Dice Chaos](https://dicechaos.com)** for handmade dicemakers, 3D printer tinkerers, and resin casters. Design watertight polyhedral master sets (`D2` through `D20`), automatically paired **insert blanks** calculated to exact caliper clearance, and automated **point-down MSLA resin supports** in one self-contained desktop studio—with custom typography, `.svg` face emblems, zero accounts, and zero subscriptions.
 
-> **Part of the Dice Chaos Tabletop Suite:** Built side-by-side with **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)** (offline campaign mind-map, conspiracy board & 2nd-screen lore display) and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** (4K/8K tabletop TV battlemap studio with true 1-inch physical miniature calibration). Craft your custom dice masters at **[dicechaos.com](https://dicechaos.com)** with *Masters*, organize your world in *Connections*, and roll real physical resin sets under your miniatures in *Display*. Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/dicechaos/DiceChaosMasters/issues).
+> **Part of the Dice Chaos Tabletop Suite:** Built side-by-side with **[Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)** (offline TTRPG battlemap & world atlas cartography studio with real-time 2D lighting and true 1-inch TV / `.dd2vtt` export), **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)** (offline campaign mind-map, conspiracy board & 2nd-screen lore display), and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** (4K/8K tabletop TV battlemap display with true 1-inch physical miniature calibration). Craft your custom dice masters at **[dicechaos.com](https://dicechaos.com)** with *Masters*, organize your world in *Connections*, draw multi-story maps & atlases in *Maps*, and roll real physical resin sets under your miniatures in *Display*. Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/dicechaos/DiceChaosMasters/issues).
 
 ---
 
@@ -131,6 +132,7 @@ npm run build:linux   # Linux (.AppImage & .deb)
 ## Links & Feedback
 
 - **Handmade Dice & Tabletop Gear:** [dicechaos.com](https://dicechaos.com)
+- **Companion Battlemap & World Atlas Cartography Studio:** [Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)
 - **Companion Campaign & Conspiracy Studio:** [Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)
 - **Companion 4K/8K TV Battlemap Studio:** [Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)
 - **Bug Reports & Feature Requests:** [GitHub Issues](https://github.com/dicechaos/DiceChaosMasters/issues)

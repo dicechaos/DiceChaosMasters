@@ -163,6 +163,19 @@ export function ShortcutsHelpModal() {
             <button
               type="button"
               className="suite-card"
+              onClick={() => void openExternalUrl('https://github.com/dicechaos/DiceChaosMaps')}
+            >
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                Dice Chaos Maps <ExternalLink size={12} aria-hidden="true" />
+              </strong>
+              <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                Offline TTRPG battlemap &amp; world atlas cartography studio with 1-inch TV export.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="suite-card"
               onClick={() =>
                 void openExternalUrl('https://github.com/dicechaos/DiceChaosConnections')
               }
@@ -171,7 +184,7 @@ export function ShortcutsHelpModal() {
                 Dice Chaos Connections <ExternalLink size={12} aria-hidden="true" />
               </strong>
               <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                Sister Electron suite app for lore, NPCs, and campaign graphs.
+                Offline campaign mind-map, conspiracy board, and 2nd-screen lore display.
               </span>
             </button>
 
@@ -184,7 +197,7 @@ export function ShortcutsHelpModal() {
                 Dice Chaos Display <ExternalLink size={12} aria-hidden="true" />
               </strong>
               <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                Sister app &amp; 3D modular display tools for makers and tables.
+                4K/8K tabletop TV battlemap display with true 1-inch miniature calibration.
               </span>
             </button>
           </div>

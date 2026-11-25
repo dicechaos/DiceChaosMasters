@@ -2,7 +2,7 @@
 
 Welcome to the latest **Public Beta** release of **Dice Chaos Masters** by **[Dice Chaos](https://dicechaos.com)**!
 
-**Dice Chaos Masters** is a free, offline-first parametric 3D polyhedral dice master, matched insert blank, and MSLA resin support studio built to pair seamlessly alongside **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)** and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** in the **Dice Chaos Tabletop Suite**.
+**Dice Chaos Masters** is a free, offline-first parametric 3D polyhedral dice master, matched insert blank, and MSLA resin support studio built to pair seamlessly alongside **[Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)**, **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)**, and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** in the **Dice Chaos Tabletop Suite**.
 
 ---
 
@@ -45,6 +45,7 @@ Welcome to the latest **Public Beta** release of **Dice Chaos Masters** by **[Di
 ### Beta Feedback, Companion Tools & Handmade Dice
 Testing **Dice Chaos Masters** with your printer & resin setup? Let us know how it prints!
 - **Report bugs / request features:** [GitHub Issues](https://github.com/dicechaos/DiceChaosMasters/issues)
+- **Companion battlemap & world atlas cartography studio:** [Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)
 - **Companion campaign mind-map studio:** [Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)
 - **Companion 4K/8K TV battlemap studio:** [Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)
 - **Handmade dice & tabletop tools:** [dicechaos.com](https://dicechaos.com)
