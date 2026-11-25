@@ -15,7 +15,7 @@
   <a href="https://github.com/dicechaos/DiceChaosConnections"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Connections-0ea5e9?style=flat-square" alt="Dice Chaos Connections" /></a>
   <a href="https://github.com/dicechaos/DiceChaosDisplay"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Display-10b981?style=flat-square" alt="Dice Chaos Display" /></a>
   <a href="https://github.com/dicechaos/DiceChaosMaps"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Maps-d97706?style=flat-square" alt="Dice Chaos Maps" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/dicechaos/DiceChaosMasters?style=flat-square" alt="GPL-3.0 License" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-ea7233?style=flat-square" alt="GPL-3.0 License" /></a>
 </p>
 
 ---
