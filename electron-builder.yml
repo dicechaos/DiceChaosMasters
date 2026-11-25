@@ -15,7 +15,7 @@ files:
   - '!tsconfig*.json'
   - '!scripts/**'
   - '!coverage/**'
-  - '!{CHANGELOG.md,README.md,RELEASE_NOTES.md,LICENSE}'
+  - '!{CHANGELOG.md,README.md,RELEASE_NOTES.md}'
   - '!{.env,.env.*,.npmrc,npm-shrinkwrap.json}'
 asarUnpack:
   - resources/**

@@ -5,7 +5,7 @@
   "main": "./out/main/index.js",
   "author": "Gus (https://dicechaos.com)",
   "homepage": "https://dicechaos.com",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/dicechaos/DiceChaosMasters.git"

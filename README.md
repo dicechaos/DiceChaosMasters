@@ -15,12 +15,12 @@
   <a href="https://github.com/dicechaos/DiceChaosConnections"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Connections-0ea5e9?style=flat-square" alt="Dice Chaos Connections" /></a>
   <a href="https://github.com/dicechaos/DiceChaosDisplay"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Display-10b981?style=flat-square" alt="Dice Chaos Display" /></a>
   <a href="https://github.com/dicechaos/DiceChaosMaps"><img src="https://img.shields.io/badge/companion%20app-Dice%20Chaos%20Maps-d97706?style=flat-square" alt="Dice Chaos Maps" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/dicechaos/DiceChaosMasters?style=flat-square" alt="MIT License" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/dicechaos/DiceChaosMasters?style=flat-square" alt="GPL-3.0 License" /></a>
 </p>
 
 ---
 
-**Dice Chaos Masters** is a free, local-first parametric CAD studio built by **[Dice Chaos](https://dicechaos.com)** for handmade dicemakers, 3D printer tinkerers, and resin casters. Design watertight polyhedral master sets (`D2` through `D20`), automatically paired **insert blanks** calculated to exact caliper clearance, and automated **point-down MSLA resin supports** in one self-contained desktop studio—with custom typography, `.svg` face emblems, zero accounts, and zero subscriptions.
+**Dice Chaos Masters** is a free, open-source (**GPL-3.0**), local-first parametric CAD studio built by **[Dice Chaos](https://dicechaos.com)** for handmade dicemakers, 3D printer tinkerers, and resin casters. Design watertight polyhedral master sets (`D2` through `D20`), automatically paired **insert blanks** calculated to exact caliper clearance, and automated **point-down MSLA resin supports** in one self-contained desktop studio—with custom typography, `.svg` face emblems, zero accounts, and zero subscriptions.
 
 > **Part of the Dice Chaos Tabletop Suite:** Built side-by-side with **[Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)** (offline TTRPG battlemap & world atlas cartography studio with real-time 2D lighting and true 1-inch TV / `.dd2vtt` export), **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)** (offline campaign mind-map, conspiracy board & 2nd-screen lore display), and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** (4K/8K tabletop TV battlemap display with true 1-inch physical miniature calibration). Craft your custom dice masters at **[dicechaos.com](https://dicechaos.com)** with *Masters*, organize your world in *Connections*, draw multi-story maps & atlases in *Maps*, and roll real physical resin sets under your miniatures in *Display*. Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/dicechaos/DiceChaosMasters/issues).
 
@@ -136,4 +136,4 @@ npm run build:linux   # Linux (.AppImage & .deb)
 - **Companion Campaign & Conspiracy Studio:** [Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)
 - **Companion 4K/8K TV Battlemap Studio:** [Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)
 - **Bug Reports & Feature Requests:** [GitHub Issues](https://github.com/dicechaos/DiceChaosMasters/issues)
-- **License:** MIT License — Copyright © 2026 dicechaos (Gus). See [LICENSE](./LICENSE).
+- **License:** Source code is licensed under **GNU General Public License v3.0 (GPL-3.0)** — Copyright © 2026 dicechaos (Gus). See [LICENSE](./LICENSE). Bundled fonts under `public/fonts/` remain under the **SIL Open Font License 1.1**. Dice masters, insert blanks, and `.stl` / `.3mf` exports you create with Dice Chaos Masters belong **100% to you** for personal or commercial use.

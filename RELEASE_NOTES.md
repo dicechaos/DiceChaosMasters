@@ -2,7 +2,7 @@
 
 Welcome to the latest **Public Beta** release of **Dice Chaos Masters** by **[Dice Chaos](https://dicechaos.com)**!
 
-**Dice Chaos Masters** is a free, offline-first parametric 3D polyhedral dice master, matched insert blank, and MSLA resin support studio built to pair seamlessly alongside **[Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)**, **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)**, and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** in the **Dice Chaos Tabletop Suite**.
+**Dice Chaos Masters** is a free, open-source (**GPL-3.0**), offline-first parametric 3D polyhedral dice master, matched insert blank, and MSLA resin support studio built to pair seamlessly alongside **[Dice Chaos Maps](https://github.com/dicechaos/DiceChaosMaps)**, **[Dice Chaos Connections](https://github.com/dicechaos/DiceChaosConnections)**, and **[Dice Chaos Display](https://github.com/dicechaos/DiceChaosDisplay)** in the **Dice Chaos Tabletop Suite**.
 
 ---
 
